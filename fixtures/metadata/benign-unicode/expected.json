@@ -1,0 +1,4 @@
+{
+  "description": "Legitimate Unicode that must not trigger MCP-TP-001: emoji ZWJ sequences, a single variation selector, and ZWNJ inside Persian words.",
+  "expected_rules": []
+}

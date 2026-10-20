@@ -1,0 +1,35 @@
+[
+  {
+    "id": "fx-remote-plain-http-remote-kb",
+    "name": "remote-kb",
+    "origin": {
+      "kind": "remote",
+      "ref": "http://mcp.example.com/mcp"
+    },
+    "server_info": {
+      "name": "remote-kb",
+      "version": "1.0.0"
+    },
+    "tools": [
+      {
+        "name": "query_kb",
+        "description": "Queries the knowledge base.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "q"
+          ]
+        }
+      }
+    ],
+    "launch": {
+      "transport": "http",
+      "url": "http://mcp.example.com/mcp"
+    }
+  }
+]

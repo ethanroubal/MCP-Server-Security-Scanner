@@ -1,0 +1,32 @@
+[
+  {
+    "id": "fx-benign-unicode-family-photos",
+    "name": "family-photos",
+    "origin": {
+      "kind": "snapshot",
+      "ref": "fixtures/metadata/benign-unicode"
+    },
+    "server_info": {
+      "name": "family-photos",
+      "version": "1.0.0"
+    },
+    "tools": [
+      {
+        "name": "share_album",
+        "description": "Shares an album with your family 👨\u200d👩\u200d👧 ❤\ufe0f\u200d🔥 ⭐\ufe0f",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "album": {
+              "type": "string",
+              "description": "نام آلبوم (می\u200cخواهم)"
+            }
+          },
+          "required": [
+            "album"
+          ]
+        }
+      }
+    ]
+  }
+]

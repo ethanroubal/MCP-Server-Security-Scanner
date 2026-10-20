@@ -1,0 +1,8 @@
+{
+  "description": "A harmless-looking server rewrites how another server's send_email tool behaves.",
+  "expected_rules": [
+    "MCP-TP-003",
+    "MCP-TP-004",
+    "MCP-XS-001"
+  ]
+}

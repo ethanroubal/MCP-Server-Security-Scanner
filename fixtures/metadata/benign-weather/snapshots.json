@@ -1,0 +1,51 @@
+[
+  {
+    "id": "fx-benign-weather-weather",
+    "name": "weather",
+    "origin": {
+      "kind": "snapshot",
+      "ref": "fixtures/metadata/benign-weather"
+    },
+    "server_info": {
+      "name": "weather",
+      "version": "1.0.0"
+    },
+    "tools": [
+      {
+        "name": "get_forecast",
+        "title": "Get forecast",
+        "description": "Returns the daily weather forecast for a city.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string",
+              "description": "City name, e.g. 'Lisbon'."
+            },
+            "days": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 14,
+              "default": 3,
+              "description": "Number of days to forecast."
+            },
+            "units": {
+              "type": "string",
+              "enum": [
+                "metric",
+                "imperial"
+              ],
+              "default": "metric"
+            }
+          },
+          "required": [
+            "city"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true
+        }
+      }
+    ]
+  }
+]

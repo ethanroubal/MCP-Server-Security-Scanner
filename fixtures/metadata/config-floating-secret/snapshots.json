@@ -1,0 +1,44 @@
+[
+  {
+    "id": "fx-config-floating-secret-github",
+    "name": "github",
+    "origin": {
+      "kind": "config",
+      "client": "claude-desktop",
+      "config_path": "~/Library/Application Support/Claude/claude_desktop_config.json",
+      "ref": "github"
+    },
+    "server_info": {
+      "name": "github",
+      "version": "1.0.0"
+    },
+    "tools": [
+      {
+        "name": "list_issues",
+        "description": "Lists issues in a repository.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "repo": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "repo"
+          ]
+        }
+      }
+    ],
+    "launch": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@example/github-mcp-server"
+      ],
+      "env": {
+        "GITHUB_TOKEN": "ghp_FAKE0fixture0token0not0real000000000"
+      }
+    }
+  }
+]

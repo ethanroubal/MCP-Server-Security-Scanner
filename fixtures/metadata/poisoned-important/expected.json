@@ -1,0 +1,9 @@
+{
+  "description": "Classic tool poisoning: an innocent tool whose description hides <IMPORTANT> instructions to read secrets and smuggle them out through an extra parameter.",
+  "expected_rules": [
+    "MCP-TP-003",
+    "MCP-TP-004",
+    "MCP-TP-005",
+    "MCP-TP-009"
+  ]
+}

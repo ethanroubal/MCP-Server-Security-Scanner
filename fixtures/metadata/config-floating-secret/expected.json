@@ -1,0 +1,7 @@
+{
+  "description": "Launch config with a plaintext token and an unpinned npx package.",
+  "expected_rules": [
+    "MCP-CF-001",
+    "MCP-RP-003"
+  ]
+}

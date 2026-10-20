@@ -1,0 +1,8 @@
+{
+  "description": "Instructions hidden in Unicode tag characters after an innocent description. Decoded text references credentials, so TP-004/TP-005 should fire on the decoded content.",
+  "expected_rules": [
+    "MCP-TP-001",
+    "MCP-TP-004",
+    "MCP-TP-005"
+  ]
+}

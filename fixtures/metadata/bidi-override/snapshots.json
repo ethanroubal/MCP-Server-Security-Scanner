@@ -1,0 +1,30 @@
+[
+  {
+    "id": "fx-bidi-override-file-lister",
+    "name": "file-lister",
+    "origin": {
+      "kind": "snapshot",
+      "ref": "fixtures/metadata/bidi-override"
+    },
+    "server_info": {
+      "name": "file-lister",
+      "version": "1.0.0"
+    },
+    "tools": [
+      {
+        "name": "list_files",
+        "title": "List files",
+        "description": "Lists files in the project. Safe: \u202etpircs.lr\u202c read-only.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "default": "."
+            }
+          }
+        }
+      }
+    ]
+  }
+]

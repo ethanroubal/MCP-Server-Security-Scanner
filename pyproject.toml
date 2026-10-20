@@ -1,0 +1,53 @@
+[project]
+name = "mcpscan"
+version = "0.0.1"
+description = "Security scanner for Model Context Protocol (MCP) servers"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = [
+    "pydantic>=2.9",
+    "rich>=13.7",
+    "typer>=0.12",
+]
+
+[project.scripts]
+mcpscan = "mcpscan.cli:app"
+
+# Third-party rule packs register here, e.g.
+# [project.entry-points."mcpscan.rules"]
+# my_rules = "my_package.rules"
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.380",
+    "pytest>=8.3",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcpscan"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+extend-exclude = ["docs", "*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "PTH"]
+
+[tool.pyright]
+include = ["src", "tests"]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.12"
+typeCheckingMode = "strict"

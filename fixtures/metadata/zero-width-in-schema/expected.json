@@ -1,0 +1,7 @@
+{
+  "description": "Zero-width spaces split keywords inside a nested parameter description to dodge phrase filters. TP-004 should match after stripping invisible characters.",
+  "expected_rules": [
+    "MCP-TP-001",
+    "MCP-TP-004"
+  ]
+}

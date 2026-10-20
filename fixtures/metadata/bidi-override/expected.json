@@ -1,0 +1,6 @@
+{
+  "description": "A right-to-left override makes the description display differently from what the model reads (Trojan Source style).",
+  "expected_rules": [
+    "MCP-TP-001"
+  ]
+}

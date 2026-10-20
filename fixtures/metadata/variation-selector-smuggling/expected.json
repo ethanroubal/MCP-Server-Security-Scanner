@@ -1,0 +1,7 @@
+{
+  "description": "Bytes hidden as a run of variation selectors after an emoji ('emoji smuggling').",
+  "expected_rules": [
+    "MCP-TP-001",
+    "MCP-TP-005"
+  ]
+}

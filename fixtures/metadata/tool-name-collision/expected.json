@@ -1,0 +1,6 @@
+{
+  "description": "Two servers expose read_file; the second uses a Cyrillic '\u0501' (U+0501) look-alike. TP-001 must NOT fire: a homoglyph is visible, not hidden.",
+  "expected_rules": [
+    "MCP-XS-002"
+  ]
+}

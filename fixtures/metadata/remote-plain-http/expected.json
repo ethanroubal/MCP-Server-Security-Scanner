@@ -1,0 +1,6 @@
+{
+  "description": "Remote server reached over plain HTTP.",
+  "expected_rules": [
+    "MCP-CF-002"
+  ]
+}
