@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "mcp/postgres", "postgresql://host.docker.internal/app"]
+    },
+    "linear": { "type": "sse", "url": "https://mcp.linear.app/sse" }
+  }
+}

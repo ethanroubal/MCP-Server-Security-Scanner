@@ -1,0 +1,47 @@
+[
+  {
+    "id": "fx-auto-approve-fetch",
+    "name": "fetch",
+    "origin": {
+      "kind": "config",
+      "client": "kiro",
+      "config_path": "~/.kiro/settings/mcp.json",
+      "ref": "fetch"
+    },
+    "launch": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "fetch-mcp==1.0.0"
+      ]
+    },
+    "client_settings": {
+      "auto_approve_all": true
+    },
+    "tools_listed": false
+  },
+  {
+    "id": "fx-auto-approve-github",
+    "name": "github",
+    "origin": {
+      "kind": "config",
+      "client": "kiro",
+      "config_path": "~/.kiro/settings/mcp.json",
+      "ref": "github"
+    },
+    "launch": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "github-mcp==1.0.0"
+      ]
+    },
+    "client_settings": {
+      "auto_approve": [
+        "get_issue",
+        "create_pull_request"
+      ]
+    },
+    "tools_listed": false
+  }
+]

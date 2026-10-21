@@ -1,0 +1,16 @@
+model = "o4-mini"
+
+[mcp_servers.docs]
+command = "npx"
+args = ["-y", "docs-mcp@2.1.0"]
+env = { LOG_LEVEL = "info" }
+
+[mcp_servers.tracker]
+url = "https://tracker.example.com/mcp"
+bearer_token_env_var = "TRACKER_TOKEN"
+http_headers = { "X-Team" = "platform" }
+
+[mcp_servers.off]
+command = "uvx"
+args = ["unused-mcp"]
+enabled = false

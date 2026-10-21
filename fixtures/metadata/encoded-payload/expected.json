@@ -1,0 +1,6 @@
+{
+  "description": "Instructions base64-encoded so reviewers and phrase filters skip them.",
+  "expected_rules": [
+    "MCP-TP-006"
+  ]
+}

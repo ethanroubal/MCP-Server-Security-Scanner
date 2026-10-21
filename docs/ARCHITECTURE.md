@@ -1,6 +1,6 @@
 # MCP Server Security Scanner — Architecture
 
-Status: draft v0.2 (2026-10-20) — implementation language: Python
+Status: draft v0.3 (2026-10-20) — implementation language: Python; Phase 1 implemented
 
 ## 1. Goal
 
@@ -369,15 +369,15 @@ Exit codes: `0` clean, `1` findings ≥ policy threshold, `2` scanner error.
 ### 7.2 Policy file (`.mcpscan.yaml`)
 ```yaml
 fail_on: high
-llm: { provider: openai-compatible, base_url: http://localhost:11434/v1, model: qwen3, scope: metadata }
-allow:
-  servers: ["@modelcontextprotocol/server-filesystem"]
+strict: true                     # partial scans (unreachable servers) fail CI
 suppress:
-  - rule_id: MCP-CF-001
+  - rule_id: MCP-CF-001          # exact id or glob; server and tool also take globs
     server: internal-db
     reason: "Secret injected by vault at runtime"   # reason required
     expires: 2027-01-01
 ```
+Implemented as designed except `allow`: suppressions with only a `server` selector cover it.
+The LLM settings (`llm:`) arrive with Phase 2. Client formats: see docs/CLIENTS.md.
 
 ### 7.3 Outputs
 Terminal (grouped by server, severity-coloured), JSON (stable schema, versioned), **SARIF 2.1** (GitHub code

@@ -1,0 +1,9 @@
+{
+  "description": "ANSI 'conceal' hides instructions from terminal-based approval prompts.",
+  "expected_rules": [
+    "MCP-TP-002",
+    "MCP-TP-004",
+    "MCP-TP-005",
+    "MCP-TP-009"
+  ]
+}

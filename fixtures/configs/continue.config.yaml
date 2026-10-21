@@ -1,0 +1,9 @@
+name: My Config
+version: 0.0.1
+mcpServers:
+  - name: SQLite
+    command: uvx
+    args: ["mcp-server-sqlite", "--db-path", "/tmp/app.db"]
+  - name: Remote
+    type: streamable-http
+    url: https://remote.example.com/mcp

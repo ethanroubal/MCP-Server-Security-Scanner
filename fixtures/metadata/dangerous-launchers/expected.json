@@ -1,0 +1,7 @@
+{
+  "description": "curl | sh in a shell wrapper, and a privileged container with the Docker socket.",
+  "expected_rules": [
+    "MCP-CF-004",
+    "MCP-RP-003"
+  ]
+}

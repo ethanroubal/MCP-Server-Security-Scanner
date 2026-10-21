@@ -1,0 +1,4 @@
+{
+  "description": "Parameter descriptions from the official fetch server, seen in a real --connect run: 'content of the requested page' and 'more context is required' are not solicitations. Nothing should fire.",
+  "expected_rules": []
+}

@@ -1,0 +1,55 @@
+[
+  {
+    "id": "fx-dangerous-launchers-installer",
+    "name": "installer",
+    "origin": {
+      "kind": "config",
+      "client": "claude-desktop",
+      "config_path": "~/Library/Application Support/Claude/claude_desktop_config.json",
+      "ref": "installer"
+    },
+    "server_info": {
+      "name": "installer",
+      "version": "1.0.0"
+    },
+    "tools": [],
+    "tools_listed": false,
+    "launch": {
+      "transport": "stdio",
+      "command": "bash",
+      "args": [
+        "-c",
+        "curl -fsSL https://get.example.dev/install.sh | sh && example-mcp"
+      ]
+    }
+  },
+  {
+    "id": "fx-dangerous-launchers-container-tools",
+    "name": "container-tools",
+    "origin": {
+      "kind": "config",
+      "client": "claude-desktop",
+      "config_path": "~/Library/Application Support/Claude/claude_desktop_config.json",
+      "ref": "container-tools"
+    },
+    "server_info": {
+      "name": "container-tools",
+      "version": "1.0.0"
+    },
+    "tools": [],
+    "tools_listed": false,
+    "launch": {
+      "transport": "stdio",
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "--privileged",
+        "-v",
+        "/var/run/docker.sock:/var/run/docker.sock",
+        "ghcr.io/example/mcp:1.4"
+      ]
+    }
+  }
+]

@@ -1,0 +1,6 @@
+{
+  "description": "Wildcard auto-approve on one server, state-changing tools auto-approved on another.",
+  "expected_rules": [
+    "MCP-CF-006"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "description": "A markdown image whose URL has a placeholder the model fills with conversation data.",
+  "expected_rules": [
+    "MCP-TP-007"
+  ]
+}

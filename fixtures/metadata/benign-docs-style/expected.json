@@ -1,0 +1,4 @@
+{
+  "description": "Well-written metadata that uses words and structure the rules look for, legitimately: <example> tags, a plain docs link, a hash, 'Always', 'Important', a 'context' parameter.",
+  "expected_rules": []
+}

@@ -1,0 +1,16 @@
+GOOSE_PROVIDER: anthropic
+extensions:
+  developer:
+    type: builtin
+    enabled: true
+  github:
+    type: stdio
+    cmd: npx
+    args: ["-y", "@modelcontextprotocol/server-github"]
+    envs:
+      GITHUB_PERSONAL_ACCESS_TOKEN: ghp_FAKE0goose0fixture0token0000000000000
+    enabled: true
+  hosted:
+    type: streamable_http
+    uri: https://hosted.example.com/mcp
+    enabled: false

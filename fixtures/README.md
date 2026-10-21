@@ -5,6 +5,9 @@ corpus for `mcpscan bench` (Phase 2), and a demo. See docs/ARCHITECTURE.md §8.
 
 ## Layout
 
+`fixtures/configs/` holds sample client config files for the discovery tests (see its README).
+The rule corpus is:
+
 ```
 fixtures/metadata/<case>/
   snapshots.json   # a list of ServerSnapshot objects (an "inventory"; usually one server)

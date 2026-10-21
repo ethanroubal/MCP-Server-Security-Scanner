@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "local-tools": { "command": "python", "args": ["-m", "my_tools"], "cwd": "./tools", "trust": true },
+    "events": { "url": "https://events.example.com/sse" },
+    "api": { "httpUrl": "https://api.example.com/mcp", "headers": { "X-Api-Key": "$API_KEY" } }
+  }
+}

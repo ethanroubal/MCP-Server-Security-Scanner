@@ -1,0 +1,10 @@
+// Zed settings: JSON with comments
+{
+  "theme": "One Dark",
+  "context_servers": {
+    "postgres": { "command": "npx", "args": ["-y", "@zeddev/postgres-context-server@0.1.3"], "env": {} },
+    // older nested form
+    "legacy": { "command": { "path": "uvx", "args": ["mcp-server-time"], "env": { "TZ": "UTC" } }, "settings": {} },
+    "remote-docs": { "url": "https://docs.example.com/mcp", "headers": { "Authorization": "Bearer ${DOCS_TOKEN}" } }
+  }
+}

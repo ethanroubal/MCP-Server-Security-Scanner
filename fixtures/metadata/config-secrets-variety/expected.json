@@ -1,0 +1,6 @@
+{
+  "description": "Secrets in an env var, a header, a flag and a URL query string.",
+  "expected_rules": [
+    "MCP-CF-001"
+  ]
+}

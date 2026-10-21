@@ -79,7 +79,11 @@ def render(result: ScanResult, console: Console) -> None:
                 for s in sorted(counts, key=lambda s: -s.rank)
             )
         )
+    if result.suppressed:
+        summary.append(f" ({len(result.suppressed)} suppressed by policy)", style="dim")
     console.print(summary)
 
+    for warning in result.warnings:
+        console.print(Text(f"warning: {reveal(warning)}", style="yellow"))
     for error in result.errors:
         console.print(Text(f"error: {reveal(error)}", style="red"))

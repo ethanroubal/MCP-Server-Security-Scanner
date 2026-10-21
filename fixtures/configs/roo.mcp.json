@@ -1,0 +1,6 @@
+{
+  "mcpServers": {
+    "files": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem@2025.8.21", "${env:PROJECT_DIR}"], "alwaysAllow": ["read_file"] },
+    "search": { "type": "streamable-http", "url": "https://search.example.com/mcp", "disabledTools": ["delete_index"] }
+  }
+}

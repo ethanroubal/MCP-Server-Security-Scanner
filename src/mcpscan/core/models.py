@@ -160,6 +160,15 @@ class Launch(StrictModel):
     headers: dict[str, SecretStr] = {}
 
 
+class ClientSettings(StrictModel):
+    """Security-relevant settings the client config attaches to a server entry."""
+
+    disabled: bool = False  # the client won't start it
+    auto_approve: list[str] = []  # tools the client calls without asking the user
+    auto_approve_all: bool = False  # e.g. Gemini CLI "trust": true, Kiro autoApprove ["*"]
+    disabled_tools: list[str] = []
+
+
 class SourceTree(StrictModel):
     root: str
     language: Literal["py", "ts", "js", "go", "other"]
@@ -177,7 +186,14 @@ class PackageMeta(StrictModel):
 
 
 class DynamicObservation(StrictModel):
-    kind: Literal["file_open", "net_connect", "dns_lookup", "process_spawn", "tools_changed"]
+    kind: Literal[
+        "file_open",
+        "net_connect",
+        "dns_lookup",
+        "process_spawn",
+        "tools_changed",  # tool list differed between two tools/list calls, or list_changed sent
+        "auth_not_required",  # a remote server answered without any credentials
+    ]
     phase: Literal["startup", "listing", "invocation"]
     detail: str
     at: datetime | None = None
@@ -193,7 +209,11 @@ class ServerSnapshot(StrictModel):
     name: str
     origin: Origin
     launch: Launch | None = None
+    client_settings: ClientSettings | None = None
     server_info: ServerInfo | None = None
+    # False when the server was only read from a config file and never asked for its tools, so
+    # an empty `tools` list means "unknown", not "none".
+    tools_listed: bool = True
     tools: list[ToolDef] = []
     prompts: list[PromptDef] = []
     resources: list[ResourceDef] = []
@@ -248,11 +268,17 @@ class Finding(StrictModel):
     references: list[str] = []
 
 
+class SuppressedFinding(StrictModel):
+    finding: Finding
+    reason: str  # from the .mcpscan.yaml suppression that matched
+
+
 class ScannedServer(StrictModel):
     id: str
     name: str
     origin: Origin
     hashes: Hashes
+    package: PackageMeta | None = None  # what --connect actually installed and ran
 
 
 class ScanResult(StrictModel):
@@ -263,7 +289,9 @@ class ScanResult(StrictModel):
     started_at: datetime
     servers: list[ScannedServer]
     findings: list[Finding]
-    errors: list[str] = []
+    suppressed: list[SuppressedFinding] = []
+    errors: list[str] = []  # the scan itself failed somewhere (exit code 2)
+    warnings: list[str] = []  # e.g. a server that couldn't be connected to
 
     def max_severity(self) -> Severity | None:
         return max((f.severity for f in self.findings), key=lambda s: s.rank, default=None)

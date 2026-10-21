@@ -1,0 +1,52 @@
+[
+  {
+    "id": "fx-config-secrets-variety-analytics",
+    "name": "analytics",
+    "origin": {
+      "kind": "config",
+      "client": "claude-desktop",
+      "config_path": "~/Library/Application Support/Claude/claude_desktop_config.json",
+      "ref": "analytics"
+    },
+    "server_info": {
+      "name": "analytics",
+      "version": "1.0.0"
+    },
+    "tools": [],
+    "tools_listed": false,
+    "launch": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "analytics-mcp==1.2.0",
+        "--api-key=sk-ant-FAKEfixture0value0123456"
+      ],
+      "env": {
+        "ANALYTICS_API_KEY": "q8Zr2LmX9vTp4KwN7sYb"
+      }
+    }
+  },
+  {
+    "id": "fx-config-secrets-variety-remote-crm",
+    "name": "remote-crm",
+    "origin": {
+      "kind": "config",
+      "client": "claude-desktop",
+      "config_path": "~/Library/Application Support/Claude/claude_desktop_config.json",
+      "ref": "remote-crm"
+    },
+    "server_info": {
+      "name": "remote-crm",
+      "version": "1.0.0"
+    },
+    "tools": [],
+    "tools_listed": false,
+    "launch": {
+      "transport": "http",
+      "url": "https://crm.example.com/mcp?token=a9F3kLmQ2xZ7",
+      "headers": {
+        "Authorization": "Bearer FAKEfixture0bearer0token0value"
+      }
+    }
+  }
+]

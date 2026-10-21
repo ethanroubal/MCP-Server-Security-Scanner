@@ -1,0 +1,7 @@
+{
+  "description": "npx launches a package one letter off from the official filesystem server.",
+  "expected_rules": [
+    "MCP-RP-003",
+    "MCP-XS-003"
+  ]
+}

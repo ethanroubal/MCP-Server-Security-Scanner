@@ -1,0 +1,9 @@
+{
+  "editor.fontSize": 14,
+  // older VS Code builds kept servers in settings.json
+  "mcp": {
+    "servers": {
+      "legacy-fetch": { "command": "uvx", "args": ["mcp-server-fetch"] }
+    }
+  }
+}

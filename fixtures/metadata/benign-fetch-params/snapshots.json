@@ -1,0 +1,40 @@
+[
+  {
+    "id": "fx-benign-fetch-params-fetch",
+    "name": "fetch",
+    "origin": {
+      "kind": "snapshot",
+      "ref": "fixtures/metadata/benign-fetch-params"
+    },
+    "server_info": {
+      "name": "mcp-fetch",
+      "version": "1.0.0"
+    },
+    "tools": [
+      {
+        "name": "fetch",
+        "description": "Fetches a URL from the internet and optionally extracts its contents as markdown.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "URL to fetch"
+            },
+            "start_index": {
+              "type": "integer",
+              "description": "On return output starting at this character index, useful if a previous fetch was truncated and more context is required."
+            },
+            "raw": {
+              "type": "boolean",
+              "description": "Get the actual HTML content of the requested page, without simplification."
+            }
+          },
+          "required": [
+            "url"
+          ]
+        }
+      }
+    ]
+  }
+]

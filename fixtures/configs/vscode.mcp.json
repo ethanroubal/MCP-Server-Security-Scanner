@@ -1,0 +1,11 @@
+// VS Code writes JSONC: comments and trailing commas are allowed.
+{
+  "inputs": [
+    { "type": "promptString", "id": "api-key", "description": "API key", "password": true },
+  ],
+  "servers": {
+    /* a stdio server */
+    "time": { "type": "stdio", "command": "uvx", "args": ["mcp-server-time"], },
+    "docs": { "type": "http", "url": "https://docs.example.com/mcp", "headers": { "Authorization": "Bearer ${input:api-key}" } },
+  },
+}

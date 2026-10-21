@@ -1,0 +1,6 @@
+{
+  "description": "A pinned filesystem server rooted at the home directory and at /.",
+  "expected_rules": [
+    "MCP-CF-005"
+  ]
+}

@@ -6,7 +6,10 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 dependencies = [
+    "anyio>=4.6",
+    "mcp>=2.3,<3",
     "pydantic>=2.9",
+    "pyyaml>=6",
     "rich>=13.7",
     "typer>=0.12",
 ]
@@ -23,6 +26,7 @@ dev = [
     "pyright>=1.1.380",
     "pytest>=8.3",
     "ruff>=0.6",
+    "types-pyyaml>=6",
 ]
 
 [build-system]

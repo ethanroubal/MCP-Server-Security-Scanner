@@ -1,0 +1,6 @@
+{
+  "mcpServers": {
+    "fetch": { "command": "uvx", "args": ["mcp-server-fetch==2025.4.7"], "autoApprove": ["*"] },
+    "disabled-one": { "command": "uvx", "args": ["other-mcp"], "disabled": true }
+  }
+}

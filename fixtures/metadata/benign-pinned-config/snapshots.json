@@ -1,0 +1,121 @@
+[
+  {
+    "id": "fx-benign-pinned-config-github",
+    "name": "github",
+    "origin": {
+      "kind": "config",
+      "client": "claude-desktop",
+      "config_path": "~/Library/Application Support/Claude/claude_desktop_config.json",
+      "ref": "github"
+    },
+    "server_info": {
+      "name": "github",
+      "version": "1.0.0"
+    },
+    "tools": [],
+    "tools_listed": false,
+    "launch": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github@2025.4.8"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
+    }
+  },
+  {
+    "id": "fx-benign-pinned-config-fetch",
+    "name": "fetch",
+    "origin": {
+      "kind": "config",
+      "client": "claude-desktop",
+      "config_path": "~/Library/Application Support/Claude/claude_desktop_config.json",
+      "ref": "fetch"
+    },
+    "server_info": {
+      "name": "fetch",
+      "version": "1.0.0"
+    },
+    "tools": [],
+    "tools_listed": false,
+    "launch": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "mcp-server-fetch==2025.4.7"
+      ]
+    }
+  },
+  {
+    "id": "fx-benign-pinned-config-container",
+    "name": "container",
+    "origin": {
+      "kind": "config",
+      "client": "claude-desktop",
+      "config_path": "~/Library/Application Support/Claude/claude_desktop_config.json",
+      "ref": "container"
+    },
+    "server_info": {
+      "name": "container",
+      "version": "1.0.0"
+    },
+    "tools": [],
+    "tools_listed": false,
+    "launch": {
+      "transport": "stdio",
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "ghcr.io/example/mcp@sha256:ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12"
+      ]
+    }
+  },
+  {
+    "id": "fx-benign-pinned-config-remote",
+    "name": "remote",
+    "origin": {
+      "kind": "config",
+      "client": "claude-desktop",
+      "config_path": "~/Library/Application Support/Claude/claude_desktop_config.json",
+      "ref": "remote"
+    },
+    "server_info": {
+      "name": "remote",
+      "version": "1.0.0"
+    },
+    "tools": [],
+    "tools_listed": false,
+    "launch": {
+      "transport": "http",
+      "url": "https://mcp.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${API_TOKEN}"
+      }
+    }
+  },
+  {
+    "id": "fx-benign-pinned-config-local-dev",
+    "name": "local-dev",
+    "origin": {
+      "kind": "config",
+      "client": "claude-desktop",
+      "config_path": "~/Library/Application Support/Claude/claude_desktop_config.json",
+      "ref": "local-dev"
+    },
+    "server_info": {
+      "name": "local-dev",
+      "version": "1.0.0"
+    },
+    "tools": [],
+    "tools_listed": false,
+    "launch": {
+      "transport": "http",
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+]

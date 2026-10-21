@@ -1,0 +1,1 @@
+{ "mcpServers": { "hf": { "url": "https://huggingface.co/mcp", "headers": { "Authorization": "Bearer <YOUR_HF_TOKEN>" } } } }

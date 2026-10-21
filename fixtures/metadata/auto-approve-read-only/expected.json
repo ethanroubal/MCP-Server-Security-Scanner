@@ -1,0 +1,6 @@
+{
+  "description": "Only read-only tools auto-approved, and a disabled server with a wildcard: low severity, and nothing for the disabled one.",
+  "expected_rules": [
+    "MCP-CF-006"
+  ]
+}

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Literal
 
 from mcpscan.core.hashing import hash_json
+from mcpscan.core.lockfile import Lockfile
 from mcpscan.core.models import (
     Category,
     Confidence,
@@ -28,7 +29,9 @@ RULE_ID_PATTERN = re.compile(r"^MCP-(TP|XS|RP|CF|SRC|SC|TF|DY)-\d{3}$")
 @dataclass(frozen=True, slots=True)
 class RuleContext:
     snapshot: ServerSnapshot  # the server being checked
-    inventory: Sequence[ServerSnapshot]  # every server in this scan, for cross-server rules
+    # The servers one agent sees together (same client), for cross-server rules.
+    inventory: Sequence[ServerSnapshot]
+    lock: Lockfile | None = None  # pinned state to compare against (MCP-RP-001)
 
 
 class Rule(ABC):

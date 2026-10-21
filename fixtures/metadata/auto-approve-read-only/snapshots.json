@@ -1,0 +1,48 @@
+[
+  {
+    "id": "fx-auto-approve-read-only-docs",
+    "name": "docs",
+    "origin": {
+      "kind": "config",
+      "client": "kiro",
+      "config_path": "~/.kiro/settings/mcp.json",
+      "ref": "docs"
+    },
+    "launch": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "docs-mcp==1.0.0"
+      ]
+    },
+    "client_settings": {
+      "auto_approve": [
+        "search_docs",
+        "get_page"
+      ]
+    },
+    "tools_listed": false
+  },
+  {
+    "id": "fx-auto-approve-read-only-off",
+    "name": "off",
+    "origin": {
+      "kind": "config",
+      "client": "kiro",
+      "config_path": "~/.kiro/settings/mcp.json",
+      "ref": "off"
+    },
+    "launch": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "off-mcp==1.0.0"
+      ]
+    },
+    "client_settings": {
+      "auto_approve_all": true,
+      "disabled": true
+    },
+    "tools_listed": false
+  }
+]

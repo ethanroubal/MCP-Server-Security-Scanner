@@ -1,0 +1,6 @@
+{
+  "mcpServers": {
+    "deepwiki": { "serverUrl": "https://mcp.deepwiki.com/sse" },
+    "git": { "command": "uvx", "args": ["mcp-server-git", "--repository", "/Users/alice/code/webapp"] }
+  }
+}

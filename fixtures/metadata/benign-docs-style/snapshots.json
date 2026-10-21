@@ -1,0 +1,53 @@
+[
+  {
+    "id": "fx-benign-docs-style-code-search",
+    "name": "code-search",
+    "origin": {
+      "kind": "snapshot",
+      "ref": "fixtures/metadata/benign-docs-style"
+    },
+    "server_info": {
+      "name": "code-search",
+      "version": "1.0.0"
+    },
+    "tools": [
+      {
+        "name": "search_code",
+        "description": "Searches the repository. Always returns matches sorted by path. Important: results are cached for 60 seconds. Requires an API key in the server config. See [the docs](https://example.com/docs/search) for query syntax.\n<example>search for 'TODO' with 2 lines of context</example>\nIndex version: 2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "What to search for."
+            },
+            "context": {
+              "type": "integer",
+              "default": 2,
+              "description": "Lines of context around each match."
+            }
+          },
+          "required": [
+            "query"
+          ]
+        }
+      },
+      {
+        "name": "generate_diagram",
+        "description": "Renders a diagram from a text prompt.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "prompt": {
+              "type": "string",
+              "description": "What the diagram should show."
+            }
+          },
+          "required": [
+            "prompt"
+          ]
+        }
+      }
+    ]
+  }
+]

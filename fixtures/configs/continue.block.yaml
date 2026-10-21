@@ -1,0 +1,7 @@
+name: Project block
+version: 0.0.1
+schema: v1
+mcpServers:
+  - name: Browser
+    command: npx
+    args: ["-y", "@playwright/mcp@0.0.41"]

@@ -1,9 +1,12 @@
 import json
+import shutil
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from mcpscan.cli import EXIT_ERROR, EXIT_FINDINGS, EXIT_OK, app
+from tests.helpers import snapshot_with_description
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "metadata"
 runner = CliRunner()
@@ -24,8 +27,10 @@ def test_findings_exit_one_and_json_is_valid() -> None:
     assert report["findings"][0]["severity"] == "critical"
 
 
-def test_fail_on_threshold() -> None:
-    target = FIXTURES / "zero-width-in-schema" / "snapshots.json"  # medium only
+def test_fail_on_threshold(tmp_path: Path) -> None:
+    medium_only = snapshot_with_description("Search" + chr(0x200B) + "terms.")  # zero-width only
+    target = tmp_path / "snapshot.json"
+    target.write_text(medium_only.model_dump_json(), encoding="utf-8")
     assert runner.invoke(app, ["scan", str(target)]).exit_code == EXIT_OK
     assert runner.invoke(app, ["scan", str(target), "--fail-on", "medium"]).exit_code == (
         EXIT_FINDINGS
@@ -52,5 +57,88 @@ def test_inspect_and_rules() -> None:
 
 
 def test_planned_commands_exit_two() -> None:
-    result = runner.invoke(app, ["lock"])
+    assert runner.invoke(app, ["bench"]).exit_code == EXIT_ERROR
+
+
+CONFIGS = Path(__file__).parent.parent / "fixtures" / "configs"
+
+
+def _project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """An isolated cwd with a project .mcp.json, and an empty fake home."""
+    home, project = tmp_path / "home", tmp_path / "project"
+    home.mkdir()
+    project.mkdir()
+    shutil.copy(CONFIGS / "project.mcp.json", project / ".mcp.json")
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.chdir(project)
+    return project
+
+
+def test_scan_config_file() -> None:
+    result = runner.invoke(
+        app, ["scan", str(CONFIGS / "claude_desktop_config.json"), "-f", "json", "--no-lock"]
+    )
+    assert result.exit_code == EXIT_FINDINGS, result.output
+    rules = {f["rule_id"] for f in json.loads(result.output)["findings"]}
+    assert {"MCP-CF-001", "MCP-RP-003"} <= rules
+    assert "ghp_FAKE" not in result.output
+
+
+def test_scan_without_target_discovers_project_and_home(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = _project(tmp_path, monkeypatch)
+    cursor = tmp_path / "home" / ".cursor"
+    cursor.mkdir()
+    shutil.copy(CONFIGS / "cursor.mcp.json", cursor / "mcp.json")
+    result = runner.invoke(app, ["scan"])
+    assert str(project / ".mcp.json") in result.output
+    assert str(cursor / "mcp.json") in result.output
+    assert "MCP-CF-002" in result.output  # remote-notes over plain http, from the home config
+
+
+def test_scan_directory_and_sarif(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    project = _project(tmp_path, monkeypatch)
+    result = runner.invoke(app, ["scan", str(project), "-f", "sarif"])
+    run = json.loads(result.output)["runs"][0]
+    assert {r["ruleId"] for r in run["results"]} == {"MCP-RP-003"}  # mcp/postgres, no tag
+    uri = run["results"][0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
+    assert uri == ".mcp.json"
+
+
+def test_lock_then_verify(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    project = _project(tmp_path, monkeypatch)
+    assert runner.invoke(app, ["lock", "."]).exit_code == EXIT_OK
+    assert (project / "mcp-lock.json").is_file()
+    assert runner.invoke(app, ["verify", "."]).exit_code == EXIT_OK
+
+    config = project / ".mcp.json"
+    data = json.loads(config.read_text(encoding="utf-8"))
+    data["mcpServers"]["postgres"]["args"][3] = "evil/postgres"
+    config.write_text(json.dumps(data), encoding="utf-8")
+    changed = runner.invoke(app, ["verify", "."])
+    assert changed.exit_code == EXIT_FINDINGS
+    assert "evil/postgres" in changed.output
+
+    data["mcpServers"]["postgres"]["args"][3] = "mcp/postgres"
+    data["mcpServers"]["new-one"] = {"command": "npx", "args": ["-y", "new-mcp@1.0.0"]}
+    config.write_text(json.dumps(data), encoding="utf-8")
+    added = runner.invoke(app, ["verify", "."])
+    assert added.exit_code == EXIT_FINDINGS
+    assert "Added since lock" in added.output and "new-one" in added.output
+
+    # scan picks the lockfile up from the cwd by default, and reports the changed launch
+    data["mcpServers"]["postgres"]["args"][3] = "evil/postgres"
+    config.write_text(json.dumps(data), encoding="utf-8")
+    assert "MCP-RP-001" in runner.invoke(app, ["scan", "."]).output
+    assert "MCP-RP-001" not in runner.invoke(app, ["scan", ".", "--no-lock"]).output
+
+
+def test_verify_without_lockfile_exits_two(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _project(tmp_path, monkeypatch)
+    assert runner.invoke(app, ["verify", "."]).exit_code == EXIT_ERROR
+
+
+def test_urls_need_connect() -> None:
+    result = runner.invoke(app, ["scan", "https://mcp.example.com/mcp"])
     assert result.exit_code == EXIT_ERROR

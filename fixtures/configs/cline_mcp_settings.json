@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx", "args": ["-y", "@modelcontextprotocol/server-github@2025.4.8"],
+      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}" },
+      "autoApprove": ["get_issue", "create_pull_request"], "disabled": false
+    },
+    "legacy-sse": { "url": "https://legacy.example.com/events" },
+    "off": { "command": "npx", "args": ["-y", "unused-mcp"], "disabled": true }
+  }
+}

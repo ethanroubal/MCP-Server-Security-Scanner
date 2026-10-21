@@ -1,0 +1,6 @@
+{
+  "mcpServers": {
+    "browser": { "command": "npx", "args": ["@playwright/mcp@0.0.41"] },
+    "remote-notes": { "url": "http://notes.example.com/mcp", "headers": { "X-Api-Key": "${env:NOTES_KEY}" } }
+  }
+}
