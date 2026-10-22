@@ -9,6 +9,7 @@ uv run python calibration/run.py --run NAME         # scan every target in the D
 uv run python calibration/report.py --run NAME      # REPORT.md + labels.yaml for review
 uv run python calibration/rescan.py --from NAME --to NAME-tuned   # rerun rules offline
 uv run python calibration/flows_review.py --run NAME   # cross-server flows on combined servers
+uv run python calibration/supply_review.py [--unpinned] # MCP-SC rules on the targets' packages
 ```
 
 - **build_targets.py** pages the official MCP registry, keeps the latest stdio packages (npm,
@@ -23,6 +24,8 @@ uv run python calibration/flows_review.py --run NAME   # cross-server flows on c
   `labels.yaml` (one entry per finding, for tp / fp / unsure verdicts; kept across reruns).
 - **flows_review.py** puts a run's saved snapshots into one client, as if installed together:
   a handful of realistic setups, then 1,000 random three-server ones for the base rate.
+- **supply_review.py** looks every npm/PyPI target up on the registries and osv.dev and runs
+  the MCP-SC rules, launching nothing; `--unpinned` drops the versions, as most configs do.
 - **rescan.py** reruns the current rules against a run's saved snapshots, launching nothing, so
   a rule change can be measured in seconds.
 
@@ -140,6 +143,36 @@ Google Workspace, MongoDB + ClickHouse + Airtable + Tavily, SearXNG + Desktop Co
   tell; a public GitLab issue can. They are kept as outbound, and the chain shows which step it
   is. Single-server results after the fixes: MCP-TF-001 on 12 servers (medium), TF-002 on 13
   (low).
+
+## 2026-10 run: supply chain (MCP-SC)
+
+`supply_review.py` on the 85 npm/PyPI targets, at their pinned registry versions and unpinned
+(the newest release, what `npx -y pkg` runs):
+
+| Rule | Pinned | Unpinned | What fired |
+|---|---|---|---|
+| SC-001 vulnerability / malware | 1 | 0 | `praisonai` 2.3.42: 159 advisories, several critical (fixed in 4.x) |
+| SC-002 install scripts | 5 | 5 | postinstall in `@azure/mcp`, `snyk`, Desktop Commander (install tracking), `@gitkraken/gk`, `claude-flow` / `loki-mode`; all present before, so low |
+| SC-003 provenance | 0 | 0 | after one fix, below |
+| SC-004 new package | 1 | 1 | `attestari-mcp`, 17 days old |
+| SC-005 new publisher | 0 | 0 | |
+| SC-006 deprecated / yanked / missing | 4 | 3 | Dynatrace and Railway deprecated; `unifi-network-mcp` 0.7.8 yanked ("install fails"); `start-mcp-server` |
+
+- **`start-mcp-server` is a real finding.** Serena's registry entry runs `uvx -p 3.13
+  start-mcp-server ... serena-agent==1.5.3`: uvx treats `start-mcp-server` as the package, and
+  no such PyPI project exists. Anyone could register it, and every copy of that config would run
+  their code. Missing names are therefore high.
+- **Fixed during calibration** (tests in `tests/test_supply.py`): an exact pin of a yanked PyPI
+  release didn't resolve (uv installs it; it's now reported instead); a PyPI project with no
+  version given resolved to a prerelease; a repository renamed by the same owner
+  (`sirkirby/unifi-network-mcp` to `sirkirby/unifi-mcp`) counted as a provenance change, so
+  SC-003 now compares owners; OSV advisories were listed in full (159), now the worst five.
+- **Dropped: "release under 2 days old".** Unpinned, it fired on 31 of 84 servers: popular MCP
+  servers release almost daily, so the age of the newest release says nothing. Package age stays.
+- **What isn't covered:** dependencies (their install scripts and advisories, which `npx` also
+  runs), Docker images, and PyPI publisher changes beyond provenance (PyPI's API doesn't say who
+  uploaded a release). SC-003 and SC-005 fired on nothing real; the zoo's hijack samples are
+  their only positive evidence so far.
 
 ## Typosquat targets (MCP-XS-003)
 

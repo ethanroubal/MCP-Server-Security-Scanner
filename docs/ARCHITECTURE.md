@@ -273,6 +273,13 @@ Only when source is available (local path, git, or unpacked npm/PyPI tarball).
   (feeds §5.1 mismatch check).
 
 ### 5.6 Supply chain (`MCP-SC`)
+Built (MCP-SC-001..006, see RULES.md): `mcpiranha.supply` resolves the release a config runs (or
+takes the one `--connect` installed) from the npm packument or PyPI's JSON simple API, records
+publisher, install scripts, provenance, age and the previous release, and queries OSV. Rules stay
+offline and judge those facts. Not yet: dependencies' scripts and advisories, Docker images,
+repo ↔ tarball comparison, download counts.
+
+Planned scope:
 - Known vulnerabilities via OSV.dev for the package and its lockfile.
 - Install scripts (`preinstall`/`postinstall`), native binaries, obfuscated/minified-only code.
 - Package age, download count, recent maintainer change, missing repository link, provenance/Sigstore attestation.
@@ -487,7 +494,7 @@ class Rule(ABC):
 | 0 ✅ | Repo skeleton, IR + Finding schema, fixture corpus v1 | Tests exist before detectors |
 | 1 ✅ | Discovery (16 clients), config rules, sandboxed `--connect`, metadata rules, lockfile, policy, TTY/JSON/SARIF, calibration against the registry's top 100 | Useful offline scanner |
 | 2 (in progress) | **Toxic flows** ✅, local classifier (experimental ✅; MCP-tuned model next), adversarial corpus + `bench` ✅, BYO-LLM layer | The differentiating features |
-| 3 | Source SAST + LLM triage, supply-chain analyzer, npm/PyPI/git targets | Pre-install vetting |
+| 3 (in progress) | Supply-chain analyzer ✅ (npm/PyPI + OSV; zoo samples on local registries), source SAST + LLM triage, npm/PyPI/git targets | Pre-install vetting |
 | 4 | Dynamic sandbox: honeytokens, egress, tracing, `--invoke`, fuzzing | Behavioral evidence |
 | 5 | `mcpiranha serve`, `mcpiranha proxy` runtime guard, registry-wide batch scanning | Continuous protection |
 

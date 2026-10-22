@@ -1,0 +1,11 @@
+title: The real postmark-mcp 1.0.16, removed from npm and listed as malware in OSV (config only)
+attack: malicious-package
+source: https://osv.dev/vulnerability/MAL-2025-47604
+note: >-
+  Looks up the public npm registry and osv.dev; nothing is downloaded or run. The postmark-bcc
+  sample is the same attack before anyone reported it, which is still a gap.
+connect: false
+lookup: true
+servers:
+  postmark: {command: npx, args: [-y, postmark-mcp@1.0.16]}
+expect: [MCP-SC-001, MCP-SC-006]

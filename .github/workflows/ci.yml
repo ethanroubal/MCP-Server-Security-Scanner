@@ -45,3 +45,9 @@ jobs:
         env:
           MCPIRANHA_DOCKER_TESTS: "1"
         run: uv run pytest -q tests/test_sandbox.py -k real_docker
+      - name: Zoo supply-chain samples against local registries
+        env:
+          MCPIRANHA_ZOO_REGISTRIES: "1"
+        run: |
+          uv run python zoo/registries/registries.py up
+          uv run pytest -q tests/test_bench.py -k registries

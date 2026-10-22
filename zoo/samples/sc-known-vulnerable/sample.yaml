@@ -1,0 +1,8 @@
+title: mcp-remote 0.1.15, vulnerable to CVE-2025-6514 (config only)
+attack: vulnerable-package
+source: https://osv.dev/vulnerability/GHSA-6xpm-ggf7-wc3p
+connect: false
+lookup: true
+servers:
+  remote: {command: npx, args: [-y, mcp-remote@0.1.15, "https://mcp.example.invalid/mcp"]}
+expect: [MCP-SC-001]

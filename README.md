@@ -34,6 +34,7 @@ mcpiranha lock --connect            # pin launch configs and tool definitions to
 mcpiranha verify --connect          # exit 1 if anything changed or was added since the lock
 mcpiranha inspect --connect <target>   # show the text the model reads, hidden characters revealed
 mcpiranha flows                     # each client's tool capabilities and the toxic flows between them
+mcpiranha scan --offline            # no registry / osv.dev lookups (skips the MCP-SC rules)
 mcpiranha scan --classifier         # experimental: add the local ML classifier (pip install 'mcpiranha[ml]')
 mcpiranha bench                     # in a checkout: score against the zoo of known-bad servers
 ```
@@ -54,6 +55,21 @@ loads. **MCP-TF-001** reports the "lethal trifecta", e.g. `github.get_issue -> f
 servers are high severity (critical if the last step is auto-approved); flows inside a single
 server, which are usually by design, are lower. Well-known servers count even without
 `--connect`.
+
+### Supply chain
+
+`scan` looks every npm and PyPI package a config runs up on the registry and on
+[osv.dev](https://osv.dev): the release `npx`/`uvx` would install (or, with `--connect`, the one
+that was installed), its publisher, install scripts, provenance and the release before it.
+**MCP-SC-001** reports known vulnerabilities and known malware (e.g. `mcp-remote@0.1.15`,
+CVE-2025-6514; `postmark-mcp@1.0.16`, taken down and listed as MAL-2025-47604).
+**SC-002** install scripts (high when the release just added one), **SC-003** a release that lost
+its build provenance or moved to another owner's repository, **SC-004** a package under 30 days
+old, **SC-005** a release by an npm account that never published the package before, **SC-006**
+deprecated or yanked releases and names missing from the registry (which anyone could register).
+This sends package names and versions to those services; `--offline` (or
+`MCPIRANHA_OFFLINE=1`) turns it off. `MCPIRANHA_NPM_REGISTRY` / `MCPIRANHA_PYPI_INDEX` point
+at a mirror. Docker images aren't looked up yet.
 
 ### Experimental classifier
 
@@ -120,10 +136,15 @@ The tool-metadata rules are tuned against the 100 most-downloaded servers in the
 registry: zero false positives on the 59 the sandbox could list, with the attack fixtures still
 detected. Method, scripts and results: [calibration/README.md](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/calibration/README.md).
 
-Attacks are tested against [the zoo](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/zoo/README.md): 13 safe-by-construction
-malicious servers, including reconstructions of public incidents. 10 are detected in full; the
-other 3 (a backdoored implementation, poisoned tool output, startup credential harvesting) need
-source or runtime analysis and are tracked as known gaps.
+The supply-chain rules were run on the same 85 npm/PyPI servers, pinned and unpinned: no false
+publisher or provenance alarms, one package with 159 advisories, two yanked or deprecated
+releases, and one registry config that runs a PyPI name nobody owns.
+
+Attacks are tested against [the zoo](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/zoo/README.md): 18 safe-by-construction
+malicious servers and packages, including reconstructions of public incidents and hijacked
+releases served from local registries. 15 are detected in full; the other 3 (a backdoored
+implementation nobody has reported yet, poisoned tool output, startup credential harvesting)
+need source or runtime analysis and are tracked as known gaps.
 
 ## Development
 

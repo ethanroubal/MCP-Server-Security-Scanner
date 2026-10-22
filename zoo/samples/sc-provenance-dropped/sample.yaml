@@ -1,0 +1,10 @@
+title: A release without the build provenance its predecessor had (config only)
+attack: package-hijack
+note: >-
+  CI-built releases carry provenance; one published by hand (or with a stolen token) doesn't.
+  Local npm registry; nothing is installed.
+connect: false
+registries: {npm: "http://127.0.0.1:4873"}
+servers:
+  notes: {command: npx, args: [-y, "@zoo/notes-mcp@^2.0.0"]}
+expect: [MCP-SC-003, MCP-SC-004, MCP-RP-003]

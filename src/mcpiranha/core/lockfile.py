@@ -74,9 +74,10 @@ def launch_fingerprint(launch: Launch) -> dict[str, Any]:
 
 
 def lock_server(snapshot: ServerSnapshot) -> LockedServer:
-    locked = LockedServer(
-        name=snapshot.name, client=snapshot.origin.client, package=snapshot.package
-    )
+    package = snapshot.package
+    if package is not None:  # what ran, not what the registry said about it today
+        package = PackageMeta(registry=package.registry, name=package.name, version=package.version)
+    locked = LockedServer(name=snapshot.name, client=snapshot.origin.client, package=package)
     if snapshot.launch is not None:
         locked.launch = launch_fingerprint(snapshot.launch)
         locked.launch_sha256 = hash_json(locked.launch)

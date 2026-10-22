@@ -1,0 +1,11 @@
+title: A new account publishes a release that adds a postinstall script (config only)
+attack: package-hijack
+note: >-
+  The shape of most npm account takeovers (e.g. the 2025 chalk/debug and Nx incidents): a new
+  release, from an unfamiliar publisher, that runs code on install. Published to the zoo's local
+  npm registry by zoo/registries/registries.py; nothing is installed.
+connect: false
+registries: {npm: "http://127.0.0.1:4873"}
+servers:
+  weather: {command: npx, args: [-y, "@zoo/weather-mcp"]}
+expect: [MCP-SC-002, MCP-SC-004, MCP-SC-005, MCP-RP-003]

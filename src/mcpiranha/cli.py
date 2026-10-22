@@ -20,7 +20,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
-from mcpiranha import __version__
+from mcpiranha import __version__, supply
 from mcpiranha import bench as bench_mod
 from mcpiranha.acquire import ConnectOptions, connect_all
 from mcpiranha.acquire.oauth import open_in_browser
@@ -110,6 +110,14 @@ AllowScriptsOpt = Annotated[
         "--allow-install-scripts",
         help="Run npm install scripts and build PyPI source packages in the sandbox's download "
         "step. Off by default, since that runs the package's code with network access.",
+    ),
+]
+OfflineOpt = Annotated[
+    bool,
+    typer.Option(
+        "--offline",
+        help="Don't look packages up on npm, PyPI and osv.dev (the MCP-SC supply-chain rules "
+        "need it). Also set by MCPIRANHA_OFFLINE=1.",
     ),
 ]
 HeaderOpt = Annotated[
@@ -239,6 +247,9 @@ def _describe_sources(targets: Targets, *, connected: bool) -> None:
                 style="dim",
             )
         )
+    if looked_up := sum(bool(s.package and s.package.checked_at) for s in targets.snapshots):
+        out.print(Text(f"Checked {looked_up} package(s) against the registries and OSV.",
+                       style="dim"))  # fmt: skip
     out.print()
 
 
@@ -332,6 +343,7 @@ def scan(
     oauth: OAuthOpt = False,
     allow_network: AllowNetworkOpt = False,
     allow_install_scripts: AllowScriptsOpt = False,
+    offline: OfflineOpt = False,
     fmt: FormatOpt = OutputFormat.TTY,
     output: OutputOpt = None,
     fail_on: Annotated[
@@ -372,6 +384,11 @@ def scan(
         timeout=timeout, jobs=jobs, header=header, oauth=oauth, allow_network=allow_network,
         allow_install_scripts=allow_install_scripts,
     )  # fmt: skip
+    if not (offline or supply.offline_by_default()):
+        targets.snapshots, lookup_warnings = anyio.run(supply.enrich, targets.snapshots)
+        for warning in lookup_warnings:
+            _warn(warning)
+        warnings = [*warnings, *lookup_warnings]
     if fmt is OutputFormat.TTY and not output:
         _describe_sources(targets, connected=connect)
 
@@ -590,6 +607,7 @@ def bench(
     classifier: Annotated[
         bool, typer.Option("--classifier", help="Also run the experimental local classifier.")
     ] = False,
+    offline: OfflineOpt = False,
 ) -> None:
     """Score mcpiranha against known-bad servers (the zoo). Samples run on this machine."""
     if fmt is OutputFormat.SARIF:
@@ -604,17 +622,20 @@ def bench(
     if classifier:
         rules.append(_classifier_rule())
     err.print(Text(f"Running {len(samples)} sample(s)...", style="dim"))
+    lookup = not (offline or supply.offline_by_default())
     results = anyio.run(functools.partial(bench_mod.run, samples, rules, timeout=timeout,
-                                          jobs=jobs))  # fmt: skip
+                                          jobs=jobs, lookup=lookup))  # fmt: skip
 
     if fmt is OutputFormat.JSON:
         out.print_json(data=[{
             "sample": r.sample.name, "attack": r.sample.attack, "status": r.status,
             "expected": sorted(r.sample.expect), "found": sorted(r.found),
             "missing": sorted(r.missing), "gap": r.sample.gap, "errors": r.errors,
+            "skipped": r.skipped,
         } for r in results])  # fmt: skip
     else:
-        style = {"pass": "green", "fail": "bold red", "gap": "dim", "gap-flagged": "yellow"}
+        style = {"pass": "green", "fail": "bold red", "gap": "dim", "gap-flagged": "yellow",
+                 "skipped": "dim"}  # fmt: skip
         table = Table("Sample", "Attack", "Result", "Missing", "Also found")
         for r in results:
             table.add_row(
@@ -628,16 +649,20 @@ def bench(
         for r in results:
             for error in r.errors:
                 _warn(f"{r.sample.name}: {error}")
+            if r.skipped:
+                _warn(f"{r.sample.name}: skipped, {r.skipped}")
             if r.status == "gap-flagged":
                 _warn(f"{r.sample.name}: a known gap now gets findings; review it and move "
                       f"them to `expect` ({r.sample.gap})")  # fmt: skip
-        scored = [r for r in results if r.sample.gap is None]
+        scored = [r for r in results if r.sample.gap is None and not r.skipped]
         expected = sum(len(r.sample.expect) for r in scored)
         hit = sum(len(r.sample.expect & r.found) for r in scored)
         passed = sum(r.status == "pass" for r in scored)
-        gaps = len(results) - len(scored)
+        gaps = sum(r.sample.gap is not None and not r.skipped for r in results)
+        skipped = sum(bool(r.skipped) for r in results)
         out.print(f"{passed}/{len(scored)} samples detected in full, {hit}/{expected} expected "
-                  f"findings; {gaps} known gap(s) not yet detectable.")  # fmt: skip
+                  f"findings; {gaps} known gap(s) not yet detectable"
+                  + (f"; {skipped} skipped." if skipped else "."))  # fmt: skip
     raise typer.Exit(1 if any(r.status == "fail" for r in results) else 0)
 
 

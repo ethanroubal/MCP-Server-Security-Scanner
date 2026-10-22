@@ -175,6 +175,27 @@ class SourceTree(StrictModel):
     entrypoints: list[str] = []
 
 
+class Vulnerability(StrictModel):
+    """An OSV advisory affecting the resolved version."""
+
+    id: str  # GHSA-..., PYSEC-..., MAL-... (MAL = known malicious package)
+    aliases: list[str] = []
+    summary: str | None = None
+    severity: Severity | None = None
+    fixed: list[str] = []  # versions that fix it, when OSV lists them
+
+
+class ReleaseInfo(StrictModel):
+    """Registry facts about one release, to compare a release with the one before it."""
+
+    version: str
+    published_at: datetime | None = None
+    publisher: str | None = None  # npm: the account that ran `npm publish`
+    install_scripts: list[str] = []  # npm lifecycle scripts; PyPI: "setup.py" for sdist-only
+    provenance: bool | None = None  # None = unknown (the registry doesn't say)
+    provenance_source: str | None = None  # the repository the provenance names
+
+
 class PackageMeta(StrictModel):
     registry: Literal["npm", "pypi", "docker"]
     name: str
@@ -183,6 +204,19 @@ class PackageMeta(StrictModel):
     install_scripts: list[str] = []
     published_at: datetime | None = None
     maintainers: list[str] = []
+    # Filled by the registry lookup (mcpiranha.supply); None/empty when it didn't run.
+    resolution: Literal["exact", "range", "latest", "installed"] | None = None
+    created_at: datetime | None = None  # the package's first release
+    publisher: str | None = None
+    provenance: bool | None = None
+    provenance_source: str | None = None
+    deprecated: str | None = None
+    removed: bool = False  # the registry no longer has it (taken down, or never existed)
+    yanked: str | None = None  # PyPI: the release was withdrawn (the reason, when given)
+    previous: ReleaseInfo | None = None  # the release before this one
+    earlier_publishers: list[str] = []  # who published the releases before this one
+    vulnerabilities: list[Vulnerability] | None = None  # None = not checked
+    checked_at: datetime | None = None  # when the lookup ran: ages are relative to this
 
 
 class DynamicObservation(StrictModel):

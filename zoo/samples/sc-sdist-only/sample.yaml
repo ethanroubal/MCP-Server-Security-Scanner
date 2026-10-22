@@ -1,0 +1,7 @@
+title: A PyPI release that ships only a source distribution, so setup.py runs on install
+attack: install-script
+connect: false
+registries: {pypi: "http://127.0.0.1:8081/simple"}
+servers:
+  calendar: {command: uvx, args: [zoo-calendar-mcp]}
+expect: [MCP-SC-002, MCP-RP-003]

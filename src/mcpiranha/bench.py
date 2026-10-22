@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 import anyio
+import httpx2
 import yaml
 
 from mcpiranha.acquire import ConnectOptions, connect_all
@@ -24,9 +25,10 @@ from mcpiranha.core.models import Origin, ServerSnapshot, Severity
 from mcpiranha.core.pipeline import scan
 from mcpiranha.discovery import client_settings, to_launch
 from mcpiranha.rules.base import Rule
+from mcpiranha.supply import PUBLIC, Registries, enrich
 
 MANIFEST = "sample.yaml"
-Status = Literal["pass", "fail", "gap", "gap-flagged"]
+Status = Literal["pass", "fail", "gap", "gap-flagged", "skipped"]
 
 
 class SampleError(ValueError):
@@ -44,6 +46,9 @@ class Sample:
     connect: bool = True
     gap: str | None = None
     source: str | None = None
+    # Supply-chain samples: look packages up (in these registries, if given) before scanning.
+    lookup: bool = False
+    registries: Registries = PUBLIC
 
 
 @dataclass(slots=True)
@@ -52,6 +57,7 @@ class SampleResult:
     found: frozenset[str]
     worst: Severity | None
     errors: list[str] = field(default_factory=list[str])
+    skipped: str | None = None  # why it couldn't run
 
     @property
     def missing(self) -> frozenset[str]:
@@ -63,6 +69,8 @@ class SampleResult:
 
     @property
     def status(self) -> Status:
+        if self.skipped is not None:
+            return "skipped"
         if self.sample.gap is not None:
             flagged = self.worst is not None and self.worst.rank >= Severity.MEDIUM.rank
             return "gap-flagged" if flagged else "gap"
@@ -94,6 +102,7 @@ def load_sample(directory: Path, python: str) -> Sample:
     if not isinstance(expect, list) or (not expect and not data.get("gap")):
         raise SampleError(f"{path}: `expect` must list rule ids, or `gap` say why it can't")
     servers = _substitute(data["servers"], {"PYTHON": python, "SAMPLE": str(directory)})
+    registries = cast(dict[str, Any], data.get("registries") or {})
     return Sample(
         name=directory.name,
         directory=directory,
@@ -104,6 +113,8 @@ def load_sample(directory: Path, python: str) -> Sample:
         connect=bool(data.get("connect", True)),
         gap=str(data["gap"]).strip() if data.get("gap") else None,
         source=str(data["source"]) if data.get("source") else None,
+        lookup=bool(data.get("lookup")) or bool(registries),
+        registries=Registries(npm=registries.get("npm"), pypi=registries.get("pypi")),
     )
 
 
@@ -133,18 +144,38 @@ def snapshots(sample: Sample) -> list[ServerSnapshot]:
     return out
 
 
+async def _unreachable(registries: Registries) -> str | None:
+    urls = [u for u in (registries.npm, registries.pypi) if u]
+    async with httpx2.AsyncClient(timeout=5) as client:
+        for url in urls:
+            try:
+                await client.get(url)
+            except httpx2.HTTPError:
+                return f"{url} isn't running (start it: zoo/registries/registries.py up)"
+    return None
+
+
 async def run(samples: Sequence[Sample], rules: Sequence[Rule], *, timeout: float = 30.0,
-              jobs: int = 4) -> list[SampleResult]:  # fmt: skip
-    """Connect to each sample's servers (`jobs` samples at a time) and scan each sample alone."""
+              jobs: int = 4, lookup: bool = True) -> list[SampleResult]:  # fmt: skip
+    """Connect to each sample's servers (`jobs` samples at a time) and scan each sample alone.
+    `lookup`: run supply-chain samples' registry lookups; False skips those samples."""
     options = ConnectOptions(sandbox="none", timeout=timeout)
     limiter = anyio.CapacityLimiter(max(1, jobs))
     results: list[SampleResult | None] = [None] * len(samples)
 
     async def one(i: int, sample: Sample) -> None:
         snaps, errors = snapshots(sample), list[str]()
+        if sample.lookup:
+            why = "needs registry lookups (--offline)" if not lookup else (
+                await _unreachable(sample.registries))  # fmt: skip
+            if why:
+                results[i] = SampleResult(sample, frozenset(), None, skipped=why)
+                return
+            snaps, errors = await enrich(snaps, registries=sample.registries)
         if sample.connect:
             async with limiter:
-                snaps, errors = await connect_all(snaps, options)
+                snaps, connect_errors = await connect_all(snaps, options)
+            errors += connect_errors
         result = scan(snaps, list(rules))
         results[i] = SampleResult(sample, frozenset(f.rule_id for f in result.findings),
                                   result.max_severity(), errors)  # fmt: skip

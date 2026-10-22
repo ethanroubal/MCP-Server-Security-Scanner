@@ -48,4 +48,16 @@ most-downloaded registry servers; see calibration/README.md.
 | MCP-TF-001 | Untrusted input, private data and an outbound channel in one agent | ✅ |
 | MCP-TF-002 | Untrusted input and code execution or destructive tools in one agent | ✅ |
 
-MCP-SRC, MCP-SC and MCP-DY ids will be added with Phases 3–4.
+## MCP-SC — Supply chain (§5.6)
+Judged on registry and OSV data gathered before the scan (`mcpiranha.supply`); off with `--offline`.
+
+| Id | Title | Status |
+|---|---|---|
+| MCP-SC-001 | Known vulnerability (OSV) or known malicious package (OSV `MAL-`) | ✅ |
+| MCP-SC-002 | Package runs code at install time (npm lifecycle scripts, sdist-only PyPI release); high when just added | ✅ |
+| MCP-SC-003 | Release lost its build provenance, or was built from another owner's repository | ✅ |
+| MCP-SC-004 | Very new package (under 30 days) | ✅ |
+| MCP-SC-005 | Release published by an npm account that never published the package before | ✅ |
+| MCP-SC-006 | Deprecated or yanked release, or a package name missing from the registry | ✅ |
+
+MCP-SRC and MCP-DY ids will be added with Phases 3–4.
