@@ -1,6 +1,8 @@
 # MCP Server Security Scanner — Architecture
 
-Status: draft v0.3 (2026-10-20) — implementation language: Python; Phase 1 implemented
+Status: v0.4 (2026-10-23) — implementation language: Python. Phase 1 implemented; Phase 2 partly
+(toxic flows, experimental classifier). Where this plan and the code differ, the code and
+calibration/README.md are current; sections below are marked where they changed.
 
 ## 1. Goal
 
@@ -26,7 +28,7 @@ CI-friendly. The LLM layer adds semantic judgment on top.
 | Layer | Speed / cost | Catches | Weakness |
 |---|---|---|---|
 | L1 Deterministic rules | ms, free | Unicode smuggling, known injection phrases, secrets, unpinned deps, insecure transport, SAST sinks | Paraphrased or novel attacks |
-| L1.5 Local classifier (optional, `[ml]`) | ~10–50 ms per text on CPU, free, offline | Paraphrased injection in descriptions, schema text and tool outputs that phrase lists miss | Binary "injection-like" score only, no explanation; tuned for chat prompts, so needs calibrating on MCP metadata |
+| L1.5 Local classifier (optional, `[ml]`, **experimental**) | ~10–50 ms per text on CPU, free, offline | Some paraphrased injections the phrase lists miss | Calibration showed the off-the-shelf model flags ordinary MCP usage guidance, so it ships as a low-severity review queue until an MCP-tuned model exists (calibration/README.md) |
 | L2 LLM judge (bring-your-own) | seconds, $ | Intent ("this description tries to make the model read ~/.ssh"), description-vs-code mismatch, capability labelling | Non-deterministic, itself injectable |
 | L3 Dynamic sandbox | minutes | What the server *actually does*: file access, network egress, rug pulls over time | Needs Docker, opt-in |
 
@@ -68,8 +70,11 @@ our structured findings, never the raw untrusted descriptions, so we don't becom
 Enumerating a stdio MCP server means **running it**. So:
 
 - Default mode only reads config files and package metadata — nothing is launched.
-- Launching (`--connect`) happens inside a sandbox: container, no network (or logged egress proxy), read-only root,
-  no host home directory, dropped capabilities, CPU/memory/time limits.
+- Launching (`--connect`) happens inside a Docker sandbox, in two steps (as built; see the module docstring of
+  `mcpscan/acquire/sandbox.py`): the package is **downloaded** in a container with network access but without
+  running its code (`npm --ignore-scripts`, PyPI wheels only), then the server **runs** from that read-only
+  volume with no network, no capabilities, no privilege escalation, a non-root user and resource limits.
+  `--allow-network` and `--allow-install-scripts` relax this per run. A logging egress proxy is still Phase 4.
 - Real env vars (API keys) from the user's config are **not** passed by default; dummy values are substituted.
   `tools/list` almost always works without valid credentials.
 - Invoking tools (`--invoke`) is a separate, explicit opt-in because tool calls can have side effects.
@@ -282,7 +287,10 @@ names/schemas/known servers, refined by L2). Then over the **whole installed set
   chain, e.g. `github.get_issue → filesystem.read_file → slack.post_message`.
 - `ingests_untrusted_content` + `executes_code` / `destructive` → injection-to-RCE / data loss path.
 
-Output is a small graph per client, rendered in the HTML report.
+As built (`mcpscan/flows`, `rules/builtin/toxic_flows.py`): labels come from tool names, parameter names and a
+table of well-known servers; annotations and descriptions are not used (calibration showed both are unreliable).
+Single-server chains are reported at lower severity than cross-server ones; auto-approved steps raise it.
+`mcpscan flows` prints each client's capabilities and chains; an HTML graph is not built yet.
 
 ### 5.8 Dynamic behavior (`MCP-DY`, opt-in)
 - **Honeytokens:** sandbox `$HOME` is seeded with fake `~/.ssh/id_rsa`, `~/.aws/credentials`, `.env`, browser
@@ -471,9 +479,9 @@ class Rule(ABC):
 
 | Phase | Scope | Outcome |
 |---|---|---|
-| 0 | Repo skeleton, IR + Finding schema, fixture corpus v1 | Tests exist before detectors |
-| 1 — MVP | Discovery (Claude Desktop/Code, Cursor, VS Code), config rules, sandboxed `tools/list`, L1 metadata rules, lockfile, TTY/JSON/SARIF | Useful offline scanner |
-| 2 | Local classifier (`[ml]`), BYO-LLM layer: intent, capability labels, **toxic flows**, `bench` | The differentiating features |
+| 0 ✅ | Repo skeleton, IR + Finding schema, fixture corpus v1 | Tests exist before detectors |
+| 1 ✅ | Discovery (16 clients), config rules, sandboxed `--connect`, metadata rules, lockfile, policy, TTY/JSON/SARIF, calibration against the registry's top 100 | Useful offline scanner |
+| 2 (in progress) | **Toxic flows** ✅, local classifier (experimental ✅; MCP-tuned model next), adversarial corpus + `bench`, BYO-LLM layer | The differentiating features |
 | 3 | Source SAST + LLM triage, supply-chain analyzer, npm/PyPI/git targets | Pre-install vetting |
 | 4 | Dynamic sandbox: honeytokens, egress, tracing, `--invoke`, fuzzing | Behavioral evidence |
 | 5 | `mcpscan serve`, `mcpscan proxy` runtime guard, registry-wide batch scanning | Continuous protection |
@@ -484,10 +492,11 @@ class Rule(ABC):
 
 1. Primary user: individual developers auditing their own setup, or teams gating servers in CI? (affects UX
    defaults — interactive vs. strict exit codes).
-2. Is a Docker dependency acceptable for the MVP's `--connect`, or do we need a no-container fallback
-   (e.g. macOS `sandbox-exec`) from day one?
+2. ~~Docker for `--connect`~~: decided; `--sandbox none` is the fallback.
 3. License / distribution (open-source CLI with optional hosted registry scanning later?).
-4. Which classifier model to start with, and whether its license allows redistribution.
+4. ~~Which classifier model~~: protectai/deberta-v3-base-prompt-injection-v2 (Apache-2.0), downloaded rather
+   than redistributed. Next question: fine-tune an MCP-specific model on the calibration corpus.
+5. Package name for PyPI: `mcpscan` collides with Invariant's `mcp-scan` under PyPI's name normalization.
 
 ## 12. Prior art to study
 Invariant Labs' `mcp-scan` (now part of Snyk), Cisco's MCP scanner, and the MCP specification's security best

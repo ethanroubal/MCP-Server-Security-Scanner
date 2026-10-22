@@ -105,3 +105,16 @@ the LLM by design ("MUST ask the user in the language they are using"). Hidden-t
 near zero until decoded. So `--classifier` ships as an experimental, low-severity review queue.
 The fix is a model fine-tuned on MCP metadata: these snapshots are the benign half of that
 training set.
+
+## Typosquat targets (MCP-XS-003)
+
+`update_known_packages.py` builds the list of names typosquatters would imitate from the
+registry's most-downloaded packages plus curated well-known ones (the reference servers aren't
+all in the registry), then measures it against every registry package, nearly all of which are
+legitimate. Whole-name edit distance flagged unrelated short names (`kiwi-mcp` / `kibi-mcp`,
+`@x/agent` / `@swmansion/argent`), so the rule now matches the shapes typosquats actually take:
+an unscoped near-miss of an unscoped name, the same package under a near-miss scope, an unscoped
+package named after a known publisher, or a popular unscoped name republished under another scope.
+Result: 31 of 15,707 registry packages flagged (0.2%), mostly forks republished under personal
+scopes, which are reported at medium ("not the package people mean; check the publisher"); true
+near-misses (`kobsidian-mcp`, `dea-agents`) stay high.

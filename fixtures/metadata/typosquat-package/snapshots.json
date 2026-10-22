@@ -19,7 +19,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "@modelcontextprotocol/server-filesytem",
+        "@modelcontextprotoco/server-filesystem",
         "/Users/alice/projects"
       ]
     }

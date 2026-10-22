@@ -194,8 +194,9 @@ def launch_config(kind: str, package: dict[str, Any]) -> dict[str, Any]:
         return {"command": "npx", "args": ["-y", spec, *package_args], "env": env}
     if kind == "pypi":  # runtime args are uvx flags, e.g. --with pkg[extra]
         spec = f"{identifier}=={version}" if version else identifier
-        if "--from" in runtime_args:  # they already name the package and the command to run
-            return {"command": "uvx", "args": [*runtime_args, *package_args], "env": env}
+        if "--from" in runtime_args:  # they name the package; the command follows, if given
+            command = [] if runtime_args.index("--from") + 2 < len(runtime_args) else [identifier]
+            return {"command": "uvx", "args": [*runtime_args, *command, *package_args], "env": env}
         return {"command": "uvx", "args": [*runtime_args, spec, *package_args], "env": env}
     image = (
         identifier if ":" in identifier.split("/")[-1] or not version else f"{identifier}:{version}"

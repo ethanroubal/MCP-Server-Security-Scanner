@@ -1052,7 +1052,8 @@
       "command": "uvx",
       "args": [
         "--from",
-        "llm-sandbox[mcp-docker]"
+        "llm-sandbox[mcp-docker]",
+        "llm-sandbox"
       ],
       "env": {}
     }

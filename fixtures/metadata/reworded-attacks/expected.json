@@ -1,0 +1,9 @@
+{
+  "description": "Attacks reworded to dodge the original phrase lists (calibration, 2026-10): a polite request for the SSH configuration, a paraphrased instruction override with an exfiltration to an 'audit endpoint', quiet inclusion of the conversation with concealment, and the official fetch server's own override of earlier refusal instructions.",
+  "expected_rules": [
+    "MCP-TF-001",
+    "MCP-TP-004",
+    "MCP-TP-005",
+    "MCP-TP-009"
+  ]
+}

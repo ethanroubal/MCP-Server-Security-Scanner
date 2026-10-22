@@ -213,9 +213,10 @@ def npm_bin_path(name: str, bin_relative: str) -> str:
 
 
 def pypi_requirement(ref: PackageRef) -> str:
+    name = ref.name + ref.extras
     if ref.spec is None:
-        return ref.name
-    return ref.name + ("==" + ref.spec[1:] if ref.spec.startswith("@") else ref.spec)
+        return name
+    return name + ("==" + ref.spec[1:] if ref.spec.startswith("@") else ref.spec)
 
 
 def _marker(output: str, prefix: str) -> str | None:

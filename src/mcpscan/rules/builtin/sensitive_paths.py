@@ -37,6 +37,10 @@ _SENSITIVE: tuple[tuple[re.Pattern[str], str], ...] = (
                 r"\bkeychain\b|\bwallet\.dat\b|\bseed\s+phrase\b", _I),
      "browser or wallet secrets"),
     (re.compile(r"\b(private|secret)[ _-]?keys?\b", _I), "private keys"),
+    # described in words rather than as paths
+    (re.compile(r"\bssh\s+(config(uration)?|keys?|private\s+keys?|identity)\b|"
+                r"\b(aws|gcp|azure|cloud)\s+credentials\b|\bbrowser\s+(cookies|passwords)\b|"
+                r"\bsaved\s+passwords\b", _I), "credentials described in words"),
 )  # fmt: skip
 
 

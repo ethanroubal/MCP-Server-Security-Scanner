@@ -27,13 +27,24 @@ PHRASES: tuple[tuple[re.Pattern[str], int, str, bool], ...] = (
     (re.compile(r"\b(ignore|disregard|forget|override)\s+(all\s+|any\s+)?(the\s+|your\s+)?"
                 r"(previous|prior|above|earlier|other|original)\s+(instructions?|directions|rules"
                 r"|guidelines|context|prompts?)", _I), 3, "override earlier instructions", True),
-    (re.compile(r"\b(new|updated|real|actual|secret|hidden)\s+instructions?\b", _I), 2,
+    (re.compile(r"\b(new|updated|real|actual|secret|hidden)\s+instructions?\b|"
+                r"\b(primary|new|real|actual|overriding)\s+directive\b", _I), 2,
      "claims new instructions", True),
+    # paraphrased overrides: "you were advised to refuse ... now", "prior guidance is outdated"
+    (re.compile(r"\b(you\s+(were|had\s+been)|originally|previously)\b[^.\n]{0,80}\b(advised|"
+                r"instructed|told|asked)\b[^.\n]{0,120}\b(now|no\s+longer|anymore)\b", _I), 3,
+     "override earlier instructions", True),
+    (re.compile(r"\b(prior|previous|earlier|original|existing)\s+(guidance|instructions?|"
+                r"directions|rules|guidelines)\b[^.\n]{0,40}\b(outdated|obsolete|superseded|"
+                r"void|invalid|no\s+longer\s+appl)", _I), 3, "override earlier instructions", True),
     (re.compile(r"\b(do\s+not|don't|dont|never|without)\s+(ever\s+)?(tell(ing)?|mention(ing)?|"
                 r"inform(ing)?|reveal(ing)?|notify(ing)?|disclos(e|ing)|alert(ing)?|let)\b[^.\n]{0,40}"
                 r"\b(user|human|anyone|them)\b", _I), 2, "conceal from the user", True),
     (re.compile(r"\b(the\s+user\s+(must|should)\s+not\s+(know|see|be\s+told)|hide\s+(this|it)\s+"
                 r"from)\b", _I), 2, "conceal from the user", True),
+    (re.compile(r"\b(no\s+need\s+to|needn't|without)\s+(mention|tell|inform|notify|alert)(ing)?\b|"
+                r"\b(quietly|silently|secretly|discreetly|covertly)\s+(include|send|add|pass|copy|"
+                r"forward|attach|read|share|upload)\b", _I), 2, "conceal from the user", True),
     (re.compile(r"\b(when|whenever|if|after|each\s+time)\b[^.\n]{0,60}\b(tool|function)\s+is\s+"
                 r"(used|called|invoked|run)", _I), 2, "hooks another tool's use", True),
     (re.compile(r"\b(otherwise|or\s+else)\b[^.\n]{0,30}\b(will\s+not|won't|will\s+fail|fails|"
@@ -44,8 +55,10 @@ PHRASES: tuple[tuple[re.Pattern[str], int, str, bool], ...] = (
     # (?:[^.\n]|\.(?=\S)) lets file names like ".env" through but stops at the end of a sentence
     (re.compile(r"\b(send|forward|bcc|cc|copy|post|upload|email|exfiltrate|report)\b"
                 r"(?:[^.\n]|\.(?=\S)){0,80}"
-                r"\b(to|at)\s+(\S+@\S+\.\w+|https?://)", _I), 3, "sends data to an outside address",
-     True),
+                r"\b(to|at)\s+(\S+@\S+\.\w+|https?://|(an?\s+|the\s+|our\s+|this\s+)?(external|remote|"
+                r"audit|logging|collection|backup|monitoring|analytics|telemetry|third[- ]party)\s+"
+                r"(endpoint|server|webhook|address|url|service|bucket))", _I), 3,
+     "sends data to an outside address", True),
     # usage guidance: common in legitimate tools, so it only adds weight
     (re.compile(r"\bbefore\s+(using|calling|invoking|running|you\s+(use|call))\s+(this|the|any)\s+"
                 r"(tool|function)", _I), 2, "pre-condition on tool use", False),

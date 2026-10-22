@@ -119,6 +119,8 @@ def test_pypi_requirement() -> None:
     assert requirement("uvx", "pkg") == "pkg"
     assert requirement("uvx", "pkg@1.2") == "pkg==1.2"
     assert requirement("uvx", "pkg>=1,<2") == "pkg>=1,<2"
+    assert requirement("uvx", "--from", "pkg[mcp-docker]", "pkg") == "pkg[mcp-docker]"
+    assert requirement("uvx", "pkg[cli]==2.0") == "pkg[cli]==2.0"
 
 
 def test_missing_docker_daemon_explains_the_fix(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -17,7 +17,9 @@ Registry = Literal["npm", "pypi", "docker"]
 
 _EXACT_SEMVER = re.compile(r"^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$")
 _PEP440_EXACT = re.compile(r"^\d+(?:\.\d+)*(?:(?:a|b|rc)\d+)?(?:\.post\d+)?(?:\.dev\d+)?$")
-_PY_SPEC = re.compile(r"^(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)(?:\[[^\]]*\])?\s*(?P<spec>.*)$")
+_PY_SPEC = re.compile(
+    r"^(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)(?P<extras>\[[^\]]*\])?\s*(?P<spec>.*)$"
+)
 _NOT_A_REGISTRY_PACKAGE = ("./", "../", "/", "~", "file:", "git+", "git:", "github:", "http:",
                            "https:", "npm:")  # fmt: skip
 
@@ -66,6 +68,7 @@ class PackageRef:
     entry: str | None = None  # executable to run when named explicitly (uvx cmd, npx -p pkg cmd)
     rest_index: int = 0  # position in command_line(launch) where the server's own args start
     with_requirements: tuple[str, ...] = ()  # uvx --with: extra requirements installed alongside
+    extras: str = ""  # PyPI extras as written, e.g. "[mcp-docker]"
 
     @property
     def pinned(self) -> bool:
@@ -204,7 +207,8 @@ def _pypi(args: list[str], runner: str, offset: int, *, from_flag: str) -> Packa
                       else [arg.split("=", 1)[1]] if arg.startswith("--with=") else [])
     )  # fmt: skip
     return PackageRef("pypi", m.group("name"), spec, runner, idx + offset,
-                      command.group("name"), positional[0] + 1 + offset, extras)  # fmt: skip
+                      command.group("name"), positional[0] + 1 + offset, extras,
+                      m.group("extras") or "")  # fmt: skip
 
 
 def _docker_ref(image: str, runner: str, argv_index: int) -> PackageRef:
