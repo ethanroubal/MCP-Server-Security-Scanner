@@ -1,0 +1,6 @@
+title: Terminal escape sequences hiding instructions from a human reviewer
+attack: hidden-text
+source: https://blog.trailofbits.com/2025/04/29/deceiving-users-with-ansi-terminal-codes-in-mcp/
+servers:
+  diff-helper: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+expect: [MCP-TP-002, MCP-TP-005]

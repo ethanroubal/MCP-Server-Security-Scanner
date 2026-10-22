@@ -214,7 +214,10 @@ class ServerSnapshot(StrictModel):
     # False when the server was only read from a config file and never asked for its tools, so
     # an empty `tools` list means "unknown", not "none".
     tools_listed: bool = True
-    tools: list[ToolDef] = []
+    tools: list[ToolDef] = []  # as last served
+    # Earlier versions of tools that changed or disappeared while connected (a rug pull):
+    # scanned too, since a client may have shown or used them.
+    earlier_tools: list[ToolDef] = []
     prompts: list[PromptDef] = []
     resources: list[ResourceDef] = []
     source: SourceTree | None = None

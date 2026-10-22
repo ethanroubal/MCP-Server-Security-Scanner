@@ -1,0 +1,8 @@
+title: A one-letter typo of the official filesystem server's scope (config only)
+attack: typosquat
+connect: false
+servers:
+  filesystem:
+    command: npx
+    args: [-y, "@modelcontextprotoco/server-filesystem", /Users/me/projects]
+expect: [MCP-XS-003, MCP-RP-003]

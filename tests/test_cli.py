@@ -57,7 +57,11 @@ def test_inspect_and_rules() -> None:
 
 
 def test_planned_commands_exit_two() -> None:
-    assert runner.invoke(app, ["bench"]).exit_code == EXIT_ERROR
+    assert runner.invoke(app, ["serve"]).exit_code == EXIT_ERROR
+
+
+def test_bench_without_samples_is_an_error(tmp_path: Path) -> None:
+    assert runner.invoke(app, ["bench", str(tmp_path)]).exit_code == EXIT_ERROR
 
 
 CONFIGS = Path(__file__).parent.parent / "fixtures" / "configs"

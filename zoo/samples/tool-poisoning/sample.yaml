@@ -1,0 +1,6 @@
+title: Tool poisoning with a hidden exfiltration parameter
+attack: tool-poisoning
+source: https://invariantlabs.ai/blog/mcp-security-notification-tool-poisoning-attacks
+servers:
+  calculator: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+expect: [MCP-TP-003, MCP-TP-004, MCP-TP-005, MCP-TP-009]

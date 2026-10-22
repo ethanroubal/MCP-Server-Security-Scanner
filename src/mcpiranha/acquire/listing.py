@@ -38,6 +38,7 @@ class EnumerationError(Exception):
 class Enumeration:
     server_info: ServerInfo | None = None
     tools: list[ToolDef] = field(default_factory=list[ToolDef])
+    earlier_tools: list[ToolDef] = field(default_factory=list[ToolDef])
     prompts: list[PromptDef] = field(default_factory=list[PromptDef])
     resources: list[ResourceDef] = field(default_factory=list[ResourceDef])
     observations: list[DynamicObservation] = field(default_factory=list[DynamicObservation])
@@ -142,7 +143,10 @@ async def enumerate_server(
                 ]
 
                 await anyio.sleep(observe_seconds)
-                changes = _tool_changes(result.tools, await tools())
+                first, result.tools = result.tools, await tools()
+                changes = _tool_changes(first, result.tools)
+                latest = {t.name: t for t in result.tools}
+                result.earlier_tools = [t for t in first if latest.get(t.name) != t]
     except TimeoutError as exc:
         raise EnumerationError(f"no complete answer within {timeout:.0f}s") from exc
     except Exception as exc:

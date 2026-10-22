@@ -35,6 +35,7 @@ mcpiranha verify --connect          # exit 1 if anything changed or was added si
 mcpiranha inspect --connect <target>   # show the text the model reads, hidden characters revealed
 mcpiranha flows                     # each client's tool capabilities and the toxic flows between them
 mcpiranha scan --classifier         # experimental: add the local ML classifier (pip install 'mcpiranha[ml]')
+mcpiranha bench                     # in a checkout: score against the zoo of known-bad servers
 ```
 
 Supported clients: Claude Desktop, Claude Code, Cursor, VS Code, Windsurf, Zed, Cline, Roo Code,
@@ -118,6 +119,11 @@ no tool is ever called. Tools are listed twice to catch servers that change them
 The tool-metadata rules are tuned against the 100 most-downloaded servers in the official MCP
 registry: zero false positives on the 59 the sandbox could list, with the attack fixtures still
 detected. Method, scripts and results: [calibration/README.md](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/calibration/README.md).
+
+Attacks are tested against [the zoo](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/zoo/README.md): 13 safe-by-construction
+malicious servers, including reconstructions of public incidents. 10 are detected in full; the
+other 3 (a backdoored implementation, poisoned tool output, startup credential harvesting) need
+source or runtime analysis and are tracked as known gaps.
 
 ## Development
 

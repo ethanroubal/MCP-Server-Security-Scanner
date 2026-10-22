@@ -1,0 +1,5 @@
+title: Paraphrased instruction override with exfiltration to an "audit" endpoint
+attack: tool-poisoning
+servers:
+  notes: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+expect: [MCP-TP-004, MCP-TP-005]

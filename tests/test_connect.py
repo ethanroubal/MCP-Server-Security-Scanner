@@ -17,6 +17,7 @@ from pydantic import SecretStr
 from typer.testing import CliRunner
 
 from mcpiranha.acquire import ConnectOptions, connect_all, connect_one
+from mcpiranha.acquire.oauth import OAuthError, check_authorization_url
 from mcpiranha.cli import EXIT_FINDINGS, EXIT_OK, app
 from mcpiranha.core.models import Launch, Origin, ServerSnapshot
 
@@ -270,3 +271,20 @@ def test_oauth_sign_in(oauth_server: str) -> None:
     assert [t.name for t in listed.tools] == ["get_record"]
     assert opened and "code_challenge=" in opened[0]  # PKCE
     assert not [o for o in listed.observations if o.kind == "auth_not_required"]
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "file:///Applications/Calculator.app",
+        "calc:",
+        "javascript:alert(1)",
+        "http://a.example/$(touch /tmp/x)\nx",
+        "https:///no-host",
+    ],
+)
+def test_authorization_url_from_server_metadata_is_checked(url: str) -> None:
+    # CVE-2025-6514 (mcp-remote): the authorization_endpoint was opened as given
+    with pytest.raises(OAuthError):
+        check_authorization_url(url)
+    check_authorization_url("https://auth.example.com/authorize?client_id=x&state=y")

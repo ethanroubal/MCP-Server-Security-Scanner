@@ -1,0 +1,14 @@
+title: GitHub MCP private-repo leak through a public issue (config only)
+attack: toxic-flow
+source: https://invariantlabs.ai/blog/mcp-github-vulnerability
+note: >-
+  An issue in a public repo asks the agent to read the user's private repos and open a PR in
+  the public one. The official server alone completes the chain; nothing is launched here, the
+  capabilities come from the known-server table.
+connect: false
+servers:
+  github:
+    command: docker
+    args: [run, -i, --rm, -e, GITHUB_PERSONAL_ACCESS_TOKEN, ghcr.io/github/github-mcp-server]
+    env: {GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"}
+expect: [MCP-TF-001, MCP-RP-003]

@@ -8,7 +8,16 @@ import pytest
 ROOT = Path(__file__).parent.parent
 FILES = sorted(
     p
-    for pattern in ("src/**/*.py", "tests/**/*.py", "*.md", "docs/**/*.md", "fixtures/**/*.md")
+    for pattern in (
+        "src/**/*.py",
+        "tests/**/*.py",
+        "zoo/**/*.py",
+        "zoo/**/*.yaml",
+        "*.md",
+        "zoo/**/*.md",
+        "docs/**/*.md",
+        "fixtures/**/*.md",
+    )
     for p in ROOT.glob(pattern)
 )
 

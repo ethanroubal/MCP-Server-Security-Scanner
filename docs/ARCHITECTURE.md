@@ -368,7 +368,7 @@ mcpiranha scan --no-llm --format sarif -o results.sarif
 
 mcpiranha lock / mcpiranha verify         # pin and verify tool hashes (rug-pull detection)
 mcpiranha inspect <server>              # pretty-print everything the model would see, hidden chars revealed
-mcpiranha bench --llm <provider:model>  # score a model on the fixture corpus
+mcpiranha bench [--llm <provider:model>]  # score against the zoo of known-bad servers
 mcpiranha serve                         # run as an MCP server (§2.3)
 mcpiranha proxy                         # later: runtime guard between client and server
 ```
@@ -401,6 +401,11 @@ injection handler, honeytoken reader, benign look-alikes (to measure false posit
 
 It serves three purposes: unit/regression tests for rules, the `bench` command for BYO models (precision/recall
 per category), and a public demo. **This should be built before the detectors**, not after.
+
+Built so far: `fixtures/metadata` (captured snapshots, run by `tests/test_fixtures.py`), `fixtures/servers`
+(live servers for `--connect` tests) and `zoo/` (malicious servers scored by `mcpiranha bench`, each with the
+rules it must trigger, or a `gap` naming the phase that will close it). Calibration on real registry servers
+(`calibration/`) is the benign half.
 
 ---
 
@@ -481,7 +486,7 @@ class Rule(ABC):
 |---|---|---|
 | 0 ✅ | Repo skeleton, IR + Finding schema, fixture corpus v1 | Tests exist before detectors |
 | 1 ✅ | Discovery (16 clients), config rules, sandboxed `--connect`, metadata rules, lockfile, policy, TTY/JSON/SARIF, calibration against the registry's top 100 | Useful offline scanner |
-| 2 (in progress) | **Toxic flows** ✅, local classifier (experimental ✅; MCP-tuned model next), adversarial corpus + `bench`, BYO-LLM layer | The differentiating features |
+| 2 (in progress) | **Toxic flows** ✅, local classifier (experimental ✅; MCP-tuned model next), adversarial corpus + `bench` ✅, BYO-LLM layer | The differentiating features |
 | 3 | Source SAST + LLM triage, supply-chain analyzer, npm/PyPI/git targets | Pre-install vetting |
 | 4 | Dynamic sandbox: honeytokens, egress, tracing, `--invoke`, fuzzing | Behavioral evidence |
 | 5 | `mcpiranha serve`, `mcpiranha proxy` runtime guard, registry-wide batch scanning | Continuous protection |

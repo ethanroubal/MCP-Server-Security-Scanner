@@ -1,0 +1,8 @@
+title: Three clean servers that together form the lethal trifecta
+attack: toxic-flow
+source: https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/
+servers:
+  inbox: {command: "${PYTHON}", args: ["${SAMPLE}/inbox.py"]}
+  files: {command: "${PYTHON}", args: ["${SAMPLE}/files.py"]}
+  webhook: {command: "${PYTHON}", args: ["${SAMPLE}/webhook.py"]}
+expect: [MCP-TF-001]

@@ -1,0 +1,6 @@
+title: Exfiltration through a rendered image URL
+attack: render-exfiltration
+source: https://embracethered.com/blog/posts/2023/chatgpt-webpilot-data-exfil-via-markdown-injection/
+servers:
+  status-badges: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+expect: [MCP-TP-007]

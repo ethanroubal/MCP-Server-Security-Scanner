@@ -112,6 +112,7 @@ async def connect_one(
         update={
             "server_info": found.server_info,
             "tools": found.tools,
+            "earlier_tools": found.earlier_tools,
             "prompts": found.prompts,
             "resources": found.resources,
             "observations": observations,

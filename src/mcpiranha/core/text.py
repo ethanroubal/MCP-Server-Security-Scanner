@@ -75,6 +75,11 @@ def iter_text_fields(snapshot: ServerSnapshot) -> Iterator[TextField]:
         if tool.output_schema:
             yield from _walk_schema(tool.output_schema, f"{base}/outputSchema", loc)
 
+    for i, tool in enumerate(snapshot.earlier_tools):
+        base, loc = f"/earlier_tools/{i}", Location(server_id=snapshot.id, tool=tool.name)
+        yield from _fields(tool, _ITEM_KEYS, loc, base)
+        yield from _walk_schema(tool.input_schema, f"{base}/inputSchema", loc)
+
     for i, prompt in enumerate(snapshot.prompts):
         base, loc = f"/prompts/{i}", Location(server_id=snapshot.id, prompt=prompt.name)
         yield from _fields(prompt, _ITEM_KEYS, loc, base)

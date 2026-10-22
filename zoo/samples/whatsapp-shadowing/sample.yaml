@@ -1,0 +1,7 @@
+title: Sleeper rug pull that shadows another server's send_message (WhatsApp MCP)
+attack: shadowing
+source: https://invariantlabs.ai/blog/whatsapp-mcp-exploited
+servers:
+  random-facts: {command: "${PYTHON}", args: ["${SAMPLE}/fact_server.py"]}
+  whatsapp: {command: "${PYTHON}", args: ["${SAMPLE}/whatsapp_server.py"]}
+expect: [MCP-RP-002, MCP-XS-001, MCP-TP-003, MCP-TF-001]

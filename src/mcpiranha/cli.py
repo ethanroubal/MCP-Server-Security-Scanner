@@ -21,6 +21,7 @@ from rich.table import Table
 from rich.text import Text
 
 from mcpiranha import __version__
+from mcpiranha import bench as bench_mod
 from mcpiranha.acquire import ConnectOptions, connect_all
 from mcpiranha.acquire.oauth import open_in_browser
 from mcpiranha.core.lockfile import LOCKFILE_NAME, Lockfile, build_lockfile
@@ -574,9 +575,70 @@ def _planned(command: str, phase: str) -> NoReturn:
 
 
 @app.command()
-def bench() -> None:
-    """Score a classifier or LLM against the fixture corpus."""
-    _planned("bench", "Phase 2")
+def bench(
+    zoo: Annotated[
+        Path, typer.Argument(help="The sample corpus, or one sample's directory.")
+    ] = Path("zoo"),
+    only: Annotated[
+        list[str] | None, typer.Option("--only", help="Run only this sample (repeatable).")
+    ] = None,
+    timeout: TimeoutOpt = 30.0,
+    jobs: Annotated[int, typer.Option(help="Samples run at the same time.")] = 4,
+    fmt: Annotated[OutputFormat, typer.Option("--format", "-f", help="tty or json.")] = (
+        OutputFormat.TTY
+    ),
+    classifier: Annotated[
+        bool, typer.Option("--classifier", help="Also run the experimental local classifier.")
+    ] = False,
+) -> None:
+    """Score mcpiranha against known-bad servers (the zoo). Samples run on this machine."""
+    if fmt is OutputFormat.SARIF:
+        _fail("bench reports as tty or json")
+    try:
+        samples = bench_mod.load_samples(zoo, sys.executable, only or ())
+    except bench_mod.SampleError as exc:
+        _fail(str(exc))
+    if not samples:
+        _fail(f"no samples ({bench_mod.MANIFEST}) under {zoo}")
+    rules = load_rules(plugins=False)
+    if classifier:
+        rules.append(_classifier_rule())
+    err.print(Text(f"Running {len(samples)} sample(s)...", style="dim"))
+    results = anyio.run(functools.partial(bench_mod.run, samples, rules, timeout=timeout,
+                                          jobs=jobs))  # fmt: skip
+
+    if fmt is OutputFormat.JSON:
+        out.print_json(data=[{
+            "sample": r.sample.name, "attack": r.sample.attack, "status": r.status,
+            "expected": sorted(r.sample.expect), "found": sorted(r.found),
+            "missing": sorted(r.missing), "gap": r.sample.gap, "errors": r.errors,
+        } for r in results])  # fmt: skip
+    else:
+        style = {"pass": "green", "fail": "bold red", "gap": "dim", "gap-flagged": "yellow"}
+        table = Table("Sample", "Attack", "Result", "Missing", "Also found")
+        for r in results:
+            table.add_row(
+                r.sample.name,
+                r.sample.attack,
+                Text(r.status, style=style[r.status]),
+                ", ".join(sorted(r.missing)) or "-",
+                ", ".join(sorted(r.extra)) or "-",
+            )
+        out.print(table)
+        for r in results:
+            for error in r.errors:
+                _warn(f"{r.sample.name}: {error}")
+            if r.status == "gap-flagged":
+                _warn(f"{r.sample.name}: a known gap now gets findings; review it and move "
+                      f"them to `expect` ({r.sample.gap})")  # fmt: skip
+        scored = [r for r in results if r.sample.gap is None]
+        expected = sum(len(r.sample.expect) for r in scored)
+        hit = sum(len(r.sample.expect & r.found) for r in scored)
+        passed = sum(r.status == "pass" for r in scored)
+        gaps = len(results) - len(scored)
+        out.print(f"{passed}/{len(scored)} samples detected in full, {hit}/{expected} expected "
+                  f"findings; {gaps} known gap(s) not yet detectable.")  # fmt: skip
+    raise typer.Exit(1 if any(r.status == "fail" for r in results) else 0)
 
 
 @app.command()

@@ -1,0 +1,6 @@
+title: Instructions smuggled in Unicode tag characters
+attack: hidden-text
+source: https://embracethered.com/blog/posts/2024/hiding-and-finding-text-with-unicode-tags/
+servers:
+  timezones: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+expect: [MCP-TP-001, MCP-TP-005, MCP-TP-009]

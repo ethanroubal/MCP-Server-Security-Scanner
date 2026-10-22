@@ -105,6 +105,18 @@ class LoopbackCallback:
         self._server.server_close()
 
 
+def check_authorization_url(url: str) -> None:
+    """The URL comes from the server's metadata: open only http(s). mcp-remote opened whatever it
+    was given, and a crafted authorization_endpoint ran commands (CVE-2025-6514)."""
+    parts = urlsplit(url)
+    if (
+        parts.scheme not in ("https", "http")
+        or not parts.hostname
+        or any(ord(c) < 0x21 or ord(c) == 0x7F for c in url)
+    ):
+        raise OAuthError(f"refusing to open the server's authorization URL: {url!r}")
+
+
 def open_in_browser(url: str) -> None:
     import sys
 
@@ -115,6 +127,7 @@ def open_in_browser(url: str) -> None:
 def oauth_provider(server_url: str, callback: LoopbackCallback, open_url: OpenUrl
                    ) -> OAuthClientProvider:  # fmt: skip
     async def redirect(url: str) -> None:
+        check_authorization_url(url)
         open_url(url)
 
     metadata = OAuthClientMetadata(

@@ -1,0 +1,5 @@
+title: Tool description that turns malicious after the first listing
+attack: rug-pull
+servers:
+  weather: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+expect: [MCP-RP-002, MCP-TP-004, MCP-TP-005]
