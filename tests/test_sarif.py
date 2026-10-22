@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from mcpscan import REPO_URL
 from mcpscan.core.io import load_snapshots
 from mcpscan.core.pipeline import scan
 from mcpscan.report import sarif
@@ -28,8 +29,10 @@ def test_structure_and_levels() -> None:
         assert r["locations"][0]["logicalLocations"][0]["fullyQualifiedName"].startswith(
             "math-helper/add#/tools/0"
         )
+    assert run["tool"]["driver"]["informationUri"] == REPO_URL
     descriptor = run["tool"]["driver"]["rules"][0]
     assert descriptor["fullDescription"]["text"]
+    assert all(r["helpUri"].startswith("https://") for r in run["tool"]["driver"]["rules"])
     assert float(descriptor["properties"]["security-severity"]) > 0
 
 

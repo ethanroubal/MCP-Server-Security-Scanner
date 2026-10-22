@@ -2,6 +2,9 @@
 
 from importlib.metadata import PackageNotFoundError, version
 
+REPO_URL = "https://github.com/ethanroubal/MCP-Server-Security-Scanner"
+RULES_URL = f"{REPO_URL}/blob/main/docs/RULES.md"
+
 try:
     __version__ = version("mcpscan")
 except PackageNotFoundError:  # running from a source checkout without installing

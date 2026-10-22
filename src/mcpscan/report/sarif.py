@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from mcpscan import __version__
+from mcpscan import REPO_URL, RULES_URL, __version__
 from mcpscan.core.models import Finding, ScanResult, Severity
 from mcpscan.core.text import reveal
 from mcpscan.rules.base import Rule
@@ -66,8 +66,7 @@ def _rule_descriptor(rule: Rule) -> dict[str, Any]:
             "security-severity": _SECURITY_SEVERITY[rule.default_severity],
         },
     }
-    if rule.references:
-        descriptor["helpUri"] = rule.references[0]
+    descriptor["helpUri"] = rule.references[0] if rule.references else RULES_URL
     return descriptor
 
 
@@ -123,6 +122,7 @@ def render(result: ScanResult, rules: Sequence[Rule], base: Path | None = None) 
                     "driver": {
                         "name": "mcpscan",
                         "version": __version__,
+                        "informationUri": REPO_URL,
                         "rules": [_rule_descriptor(r) for r in rules if r.id in used],
                     }
                 },
