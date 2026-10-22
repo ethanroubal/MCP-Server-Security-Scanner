@@ -2,10 +2,21 @@
 
 Security scanner for Model Context Protocol (MCP) servers: tool poisoning, cross-server shadowing,
 rug pulls, insecure configuration, vulnerable implementations and dangerous combinations of servers.
-It works fully offline; bringing your own LLM is optional. Design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+It works fully offline. Design: [docs/ARCHITECTURE.md](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/docs/ARCHITECTURE.md).
 
-**Status: Phase 1 complete; Phase 2 started (toxic flows, experimental classifier).** 24 rules (see [docs/RULES.md](docs/RULES.md)) run on client
-configs, snapshot files and, with `--connect`, on what servers actually serve.
+**Status: 0.1.0.** 24 rules (see [docs/RULES.md](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/docs/RULES.md)) run on client configs, snapshot
+files and, with `--connect`, on what servers actually serve. Toxic-flow analysis across servers
+is in; an experimental local classifier is optional; an LLM layer is planned.
+
+## Install
+
+```bash
+uvx mcpiranha scan              # run without installing (needs uv)
+pipx install mcpiranha          # or install the command
+pip install 'mcpiranha[ml]'     # with the experimental classifier
+```
+
+Requires Python 3.12+. `--connect` uses Docker for its sandbox.
 
 ## Usage
 
@@ -28,7 +39,7 @@ mcpiranha scan --classifier         # experimental: add the local ML classifier 
 
 Supported clients: Claude Desktop, Claude Code, Cursor, VS Code, Windsurf, Zed, Cline, Roo Code,
 Gemini CLI, Codex CLI, Continue, Goose, Amazon Q Developer CLI, Kiro, opencode and LM Studio, on
-macOS, Linux and Windows. See [docs/CLIENTS.md](docs/CLIENTS.md) for paths and formats.
+macOS, Linux and Windows. See [docs/CLIENTS.md](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/docs/CLIENTS.md) for paths and formats.
 Reports never contain secret values.
 
 ### Toxic flows
@@ -49,7 +60,7 @@ server, which are usually by design, are lower. Well-known servers count even wi
 Apache-2.0, ~740 MB, downloaded once and verified against pinned hashes). It catches some reworded
 attacks the phrase rules miss, but it was trained on chat prompts and flags ordinary usage
 guidance in tool descriptions too, so its findings are low severity and meant as a review
-queue. Measurements: [calibration/README.md](calibration/README.md).
+queue. Measurements: [calibration/README.md](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/calibration/README.md).
 
 ### Policy file
 
@@ -106,7 +117,7 @@ no tool is ever called. Tools are listed twice to catch servers that change them
 
 The tool-metadata rules are tuned against the 100 most-downloaded servers in the official MCP
 registry: zero false positives on the 59 the sandbox could list, with the attack fixtures still
-detected. Method, scripts and results: [calibration/README.md](calibration/README.md).
+detected. Method, scripts and results: [calibration/README.md](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/calibration/README.md).
 
 ## Development
 
