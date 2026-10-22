@@ -2,11 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from mcpscan.core.io import load_snapshots
-from mcpscan.core.models import CapabilityLabel, ClientSettings, Severity, ToolDef
-from mcpscan.core.pipeline import scan
-from mcpscan.flows import label_tool, words
-from mcpscan.rules import load_rules
+from mcpiranha.core.io import load_snapshots
+from mcpiranha.core.models import CapabilityLabel, ClientSettings, Severity, ToolDef
+from mcpiranha.core.pipeline import scan
+from mcpiranha.flows import label_tool, words
+from mcpiranha.rules import load_rules
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "metadata"
 FLOW_RULES = [r for r in load_rules(plugins=False) if r.id.startswith("MCP-TF")]
@@ -76,7 +76,7 @@ def test_disabled_tool_breaks_the_chain() -> None:
 
 
 def test_single_server_flows_are_lower_severity() -> None:
-    from mcpscan.core.models import Origin, ServerSnapshot
+    from mcpiranha.core.models import Origin, ServerSnapshot
 
     github_like = ServerSnapshot(
         id="one", name="hub", origin=Origin(kind="snapshot", ref="x"),

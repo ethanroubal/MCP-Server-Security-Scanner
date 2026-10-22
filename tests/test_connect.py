@@ -16,9 +16,9 @@ import pytest
 from pydantic import SecretStr
 from typer.testing import CliRunner
 
-from mcpscan.acquire import ConnectOptions, connect_all, connect_one
-from mcpscan.cli import EXIT_FINDINGS, EXIT_OK, app
-from mcpscan.core.models import Launch, Origin, ServerSnapshot
+from mcpiranha.acquire import ConnectOptions, connect_all, connect_one
+from mcpiranha.cli import EXIT_FINDINGS, EXIT_OK, app
+from mcpiranha.core.models import Launch, Origin, ServerSnapshot
 
 SERVERS = Path(__file__).parent.parent / "fixtures" / "servers"
 HOST = ConnectOptions(sandbox="none", timeout=30, observe_seconds=0.2)
@@ -95,7 +95,7 @@ def _probe_description(env: dict[str, str], *, real: bool, environ: dict[str, st
 
 def test_servers_get_dummy_env_by_default() -> None:
     description = _probe_description({"PROBE_TOKEN": FAKE_TOKEN}, real=False, environ={})
-    assert description == "probe token=mcpscan-dummy-value"
+    assert description == "probe token=mcpiranha-dummy-value"
 
 
 def test_real_credentials_expand_placeholders() -> None:
@@ -104,7 +104,7 @@ def test_real_credentials_expand_placeholders() -> None:
         "probe token=from-env"
     )
     # unresolvable placeholders fall back to the dummy instead of passing "${...}" through
-    assert _probe_description(env, real=True, environ={}).endswith("mcpscan-dummy-value")
+    assert _probe_description(env, real=True, environ={}).endswith("mcpiranha-dummy-value")
 
 
 def test_a_failing_server_is_a_warning_not_an_error() -> None:
@@ -190,7 +190,7 @@ def test_package_targets_need_connect() -> None:
 
 
 def test_parallel_connections_keep_order() -> None:
-    from mcpscan.core.models import ClientSettings
+    from mcpiranha.core.models import ClientSettings
 
     snapshots = [_snapshot("poisoned.py"), _snapshot("env_probe.py"), _snapshot("rug_pull.py")]
     disabled = _snapshot("poisoned.py").model_copy(
@@ -264,7 +264,7 @@ def test_oauth_sign_in(oauth_server: str) -> None:
         urllib.request.urlopen(url).read()
 
     options = ConnectOptions(timeout=30, observe_seconds=0, oauth_open=sign_in)
-    from mcpscan.targets import package_target
+    from mcpiranha.targets import package_target
 
     listed = anyio.run(connect_one, package_target(oauth_server), options)
     assert [t.name for t in listed.tools] == ["get_record"]

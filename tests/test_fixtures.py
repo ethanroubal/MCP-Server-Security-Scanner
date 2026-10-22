@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from mcpscan.core.io import load_snapshots
-from mcpscan.core.pipeline import scan
-from mcpscan.rules import Rule, load_rules
-from mcpscan.rules.base import RULE_ID_PATTERN
+from mcpiranha.core.io import load_snapshots
+from mcpiranha.core.pipeline import scan
+from mcpiranha.rules import Rule, load_rules
+from mcpiranha.rules.base import RULE_ID_PATTERN
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "metadata"
 CASES = sorted(p for p in FIXTURES.iterdir() if p.is_dir())

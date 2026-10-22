@@ -1,6 +1,6 @@
 # Supported MCP clients
 
-Where `mcpscan scan` looks, and how each format is read. Formats were checked against each
+Where `mcpiranha scan` looks, and how each format is read. Formats were checked against each
 client's documentation on 2026-10-20. Paths marked **unverified** come from earlier knowledge of
 the client and weren't confirmed by its current docs; please report corrections.
 

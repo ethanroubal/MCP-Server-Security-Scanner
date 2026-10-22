@@ -1,7 +1,7 @@
 import pytest
 
-from mcpscan.core.models import Confidence
-from mcpscan.core.secrets import classify, redact_args
+from mcpiranha.core.models import Confidence
+from mcpiranha.core.secrets import classify, redact_args
 
 GITHUB = "ghp_" + "A1b2C3d4" * 5  # fake
 

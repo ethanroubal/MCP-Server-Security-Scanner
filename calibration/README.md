@@ -1,6 +1,6 @@
 # Calibration
 
-Measures how mcpscan's rules behave on real, popular MCP servers, so they can be tuned for false
+Measures how mcpiranha's rules behave on real, popular MCP servers, so they can be tuned for false
 positives without guessing.
 
 ```bash
@@ -15,7 +15,7 @@ uv run python calibration/rescan.py --from NAME --to NAME-tuned   # rerun rules 
   versions, with a client-style launch config (dummy values for required and secret env vars,
   the declared package and runtime arguments). The registry and download counts are cached in
   `.cache/`.
-- **run.py** scans each target on its own, from its own directory, with `mcpscan scan
+- **run.py** scans each target on its own, from its own directory, with `mcpiranha scan
   --connect --save-snapshots`. It resumes: targets with a report are skipped.
   `--allow-network` / `--allow-install-scripts` pass the matching opt-ins through.
 - **report.py** writes `results/NAME/REPORT.md` (coverage, then every finding by rule) and

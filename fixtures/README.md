@@ -1,7 +1,7 @@
 # Fixture corpus
 
 Intentionally malicious and benign MCP server data. It serves as the rule regression suite, the
-corpus for `mcpscan bench` (Phase 2), and a demo. See docs/ARCHITECTURE.md §8.
+corpus for `mcpiranha bench` (Phase 2), and a demo. See docs/ARCHITECTURE.md §8.
 
 ## Layout
 
@@ -26,7 +26,7 @@ whenever you add a detector.
 
 Keep invisible characters as `\uXXXX` escapes in the JSON (surrogate pairs for code points above
 U+FFFF, e.g. tag character U+E0041 is `\udb40\udc41`). Raw invisible characters in a fixture are
-impossible to review. `mcpscan inspect fixtures/metadata/<case>/snapshots.json` shows what the
+impossible to review. `mcpiranha inspect fixtures/metadata/<case>/snapshots.json` shows what the
 model sees, with hidden characters revealed.
 
 The `ghp_FAKE…` token in `config-floating-secret` is fake.

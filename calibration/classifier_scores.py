@@ -13,14 +13,14 @@ import argparse
 import json
 from pathlib import Path
 
-from mcpscan.classifier import load
-from mcpscan.classifier.rule import MIN_CHARS
-from mcpscan.core.io import load_snapshots
-from mcpscan.core.text import iter_text_fields
+from mcpiranha.classifier import load
+from mcpiranha.core.io import load_snapshots
+from mcpiranha.core.text import iter_text_fields
 
 HERE = Path(__file__).parent
 FIXTURES = HERE.parent / "fixtures" / "metadata"
 THRESHOLDS = (0.5, 0.9, 0.99, 0.995, 0.999, 0.9999)
+MIN_CHARS = 24  # names and one-word values carry no instructions
 
 
 def texts(path: Path) -> list[str]:

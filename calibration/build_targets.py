@@ -26,8 +26,8 @@ from typing import Any
 HERE = Path(__file__).parent
 CACHE = HERE / ".cache"
 REGISTRY = "https://registry.modelcontextprotocol.io/v0/servers"
-DUMMY = "mcpscan-calibration-dummy"
-USER_AGENT = "mcpscan-calibration (https://github.com/ethanroubal/MCP-Server-Security-Scanner)"
+DUMMY = "mcpiranha-calibration-dummy"
+USER_AGENT = "mcpiranha-calibration (https://github.com/ethanroubal/MCP-Server-Security-Scanner)"
 
 
 class RateLimited(Exception):

@@ -2,10 +2,10 @@ from pathlib import Path
 
 from pydantic import SecretStr
 
-from mcpscan.core.lockfile import Lockfile, build_lockfile
-from mcpscan.core.models import Launch, Origin, ServerSnapshot, Severity, ToolDef
-from mcpscan.core.pipeline import scan
-from mcpscan.rules.builtin.rug_pull import RugPull
+from mcpiranha.core.lockfile import Lockfile, build_lockfile
+from mcpiranha.core.models import Launch, Origin, ServerSnapshot, Severity, ToolDef
+from mcpiranha.core.pipeline import scan
+from mcpiranha.rules.builtin.rug_pull import RugPull
 
 TOKEN = "ghp_" + "Z9y8X7w6" * 5  # fake
 
@@ -84,7 +84,7 @@ def test_unlocked_server_is_ignored_by_the_rule() -> None:
 
 
 def test_resolved_package_version_drift() -> None:
-    from mcpscan.core.models import PackageMeta
+    from mcpiranha.core.models import PackageMeta
 
     def resolved(version: str, args: list[str] | None = None) -> ServerSnapshot:
         snapshot = _server(args=args or ["-y", "math-mcp", f"--token={TOKEN}"])

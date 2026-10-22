@@ -1,7 +1,7 @@
 # Fixture MCP servers
 
 Small, deliberately malicious (or merely probing) MCP servers for the `--connect` tests in
-`tests/test_connect.py`. They are mcpscan's own test code, so tests run them with
+`tests/test_connect.py`. They are mcpiranha's own test code, so tests run them with
 `--sandbox none`. None of them reads files, touches the network or does anything when a tool is
 called; the malice is only in what they *show* the model.
 

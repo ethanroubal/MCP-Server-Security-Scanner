@@ -1,6 +1,6 @@
 """The Docker sandbox's commands, checked without a Docker daemon by faking the docker CLI.
 
-Set MCPSCAN_DOCKER_TESTS=1 to also run a real server in a real sandbox (needs Docker and network).
+Set MCPIRANHA_DOCKER_TESTS=1 to also run a real server in a real sandbox (needs Docker and network).
 """
 
 from __future__ import annotations
@@ -13,17 +13,17 @@ import anyio
 import pytest
 from pydantic import SecretStr
 
-from mcpscan.acquire import ConnectOptions, connect_one
-from mcpscan.acquire import sandbox as sb
-from mcpscan.core.launch import package_ref
-from mcpscan.core.models import Launch, Origin, ServerSnapshot
+from mcpiranha.acquire import ConnectOptions, connect_one
+from mcpiranha.acquire import sandbox as sb
+from mcpiranha.core.launch import package_ref
+from mcpiranha.core.models import Launch, Origin, ServerSnapshot
 
 RESTRICTIONS = [("--network", "none"), ("--cap-drop", "ALL"),
                 ("--security-opt", "no-new-privileges"), ("--user", "1000:1000")]  # fmt: skip
 
 
 class FakeDocker:
-    def __init__(self, fetch_output: str = "MCPSCAN_BIN=dist/index.js\n") -> None:
+    def __init__(self, fetch_output: str = "MCPIRANHA_BIN=dist/index.js\n") -> None:
         self.calls: list[tuple[str, ...]] = []
         self.fetch_output = fetch_output
 
@@ -62,7 +62,7 @@ def test_npm_server_runs_offline_and_unprivileged(monkeypatch: pytest.MonkeyPatc
     assert "--read-only" in command
     assert any(a.endswith(":/work:ro") for a in command)
     assert command[-3:] == ["/work/node_modules/@acme/mcp/dist/index.js", "--root", "/data"]
-    assert "API_KEY=mcpscan-dummy-value" in command
+    assert "API_KEY=mcpiranha-dummy-value" in command
     assert "real-secret" not in " ".join(command)
 
 
@@ -96,7 +96,7 @@ def test_docker_image_server_drops_config_flags(monkeypatch: pytest.MonkeyPatch)
     command = prepared.command or []
     assert "--privileged" not in command and "/:/host" not in command
     assert _has(command, "--network", "none")
-    assert "TOKEN=mcpscan-dummy-value" in command
+    assert "TOKEN=mcpiranha-dummy-value" in command
     assert command[-2:] == ["ghcr.io/acme/mcp:2", "serve"]
 
 
@@ -107,7 +107,9 @@ def test_local_files_cannot_be_sandboxed(monkeypatch: pytest.MonkeyPatch) -> Non
 
 def test_package_bin_cannot_escape(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(sb.SandboxError, match="outside itself"):
-        _prepare(monkeypatch, "npx", "-y", "evil", fake=FakeDocker("MCPSCAN_BIN=../../../bin/sh\n"))
+        _prepare(
+            monkeypatch, "npx", "-y", "evil", fake=FakeDocker("MCPIRANHA_BIN=../../../bin/sh\n")
+        )
 
 
 def test_pypi_requirement() -> None:
@@ -132,8 +134,8 @@ def test_missing_docker_daemon_explains_the_fix(monkeypatch: pytest.MonkeyPatch)
         anyio.run(sb.docker_available)
 
 
-@pytest.mark.skipif(os.environ.get("MCPSCAN_DOCKER_TESTS") != "1",
-                    reason="set MCPSCAN_DOCKER_TESTS=1 (needs Docker and network)")  # fmt: skip
+@pytest.mark.skipif(os.environ.get("MCPIRANHA_DOCKER_TESTS") != "1",
+                    reason="set MCPIRANHA_DOCKER_TESTS=1 (needs Docker and network)")  # fmt: skip
 def test_real_docker_sandbox() -> None:
     snapshot = ServerSnapshot(
         id="target:npm:@modelcontextprotocol/server-everything",
@@ -149,15 +151,15 @@ def test_real_docker_sandbox() -> None:
 
 
 def test_resolved_versions_are_reported(monkeypatch: pytest.MonkeyPatch) -> None:
-    npm, _ = _prepare(monkeypatch, "npx", "-y", "pkg",
-                      fake=FakeDocker("MCPSCAN_BIN=index.js\nMCPSCAN_VERSION=4.2.0\n"))  # fmt: skip
+    output = "MCPIRANHA_BIN=index.js\nMCPIRANHA_VERSION=4.2.0\n"
+    npm, _ = _prepare(monkeypatch, "npx", "-y", "pkg", fake=FakeDocker(output))
     assert npm.resolved is not None and (npm.resolved.name, npm.resolved.version) == (
         "pkg",
         "4.2.0",
     )
 
     pypi, fake = _prepare(monkeypatch, "uvx", "mcp-server-git",
-                          fake=FakeDocker("MCPSCAN_VERSION=2025.1.14\n"))  # fmt: skip
+                          fake=FakeDocker("MCPIRANHA_VERSION=2025.1.14\n"))  # fmt: skip
     assert pypi.resolved is not None and pypi.resolved.version == "2025.1.14"
     install = next(c for c in fake.calls if c[0] == "run")
     assert any(a.startswith(f"{sb.UV_CACHE_VOLUME}:") for a in install)  # shared cache
@@ -196,7 +198,7 @@ class Scripted(FakeDocker):
 def test_python_version_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     wrapped = "Because the current Python version (3.12.12) does not satisfy\n      Python>=3.13"
     fake = Scripted({sb.UV_IMAGE: f"docker run failed: {wrapped}"},
-                    "MCPSCAN_VERSION=8.7.0\nMCPSCAN_SCRIPTS=ha-mcp\n")  # fmt: skip
+                    "MCPIRANHA_VERSION=8.7.0\nMCPIRANHA_SCRIPTS=ha-mcp\n")  # fmt: skip
     prepared, _ = _prepare(monkeypatch, "uvx", "ha-mcp==8.7.0", fake=fake)
     assert sb.UV_IMAGE_NEWER in (prepared.command or [])  # runs on the image that installed it
 
@@ -209,7 +211,7 @@ def test_arm_fallback_pulls_amd64(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_pypi_executable_comes_from_console_scripts(monkeypatch: pytest.MonkeyPatch) -> None:
-    out = "MCPSCAN_VERSION=0.51.5\nMCPSCAN_SCRIPTS=ouroboros,ouroboros-mcp\n"
+    out = "MCPIRANHA_VERSION=0.51.5\nMCPIRANHA_SCRIPTS=ouroboros,ouroboros-mcp\n"
     prepared, _ = _prepare(monkeypatch, "uvx", "ouroboros-ai==0.51.5", "mcp", "serve",
                            fake=FakeDocker(out))  # fmt: skip
     assert _has(prepared.command or [], "--entrypoint", "/work/venv/bin/ouroboros-mcp")
@@ -239,7 +241,7 @@ def test_opt_ins(monkeypatch: pytest.MonkeyPatch) -> None:
         launch, sandbox="docker", real_credentials=False, errlog=io.StringIO(), environ={},
         allow_network=True, allow_install_scripts=True))  # fmt: skip
     install = " ".join(next(c for c in fake.calls if c[0] == "run"))
-    assert "MCPSCAN_IGNORE_SCRIPTS= " in install + " "  # scripts allowed: flag left empty
+    assert "MCPIRANHA_IGNORE_SCRIPTS= " in install + " "  # scripts allowed: flag left empty
     assert "--network" not in (prepared.command or [])
 
 

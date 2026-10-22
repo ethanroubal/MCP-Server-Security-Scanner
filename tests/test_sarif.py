@@ -2,11 +2,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-from mcpscan import REPO_URL
-from mcpscan.core.io import load_snapshots
-from mcpscan.core.pipeline import scan
-from mcpscan.report import sarif
-from mcpscan.rules import load_rules
+from mcpiranha import REPO_URL
+from mcpiranha.core.io import load_snapshots
+from mcpiranha.core.pipeline import scan
+from mcpiranha.report import sarif
+from mcpiranha.rules import load_rules
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "metadata"
 RULES = load_rules(plugins=False)
@@ -25,7 +25,7 @@ def test_structure_and_levels() -> None:
     assert {r["ruleId"] for r in run["results"]} == rule_ids
     for r in run["results"]:
         assert r["level"] in ("error", "warning", "note")
-        assert r["partialFingerprints"]["mcpscanFindingId/v1"]
+        assert r["partialFingerprints"]["mcpiranhaFindingId/v1"]
         assert r["locations"][0]["logicalLocations"][0]["fullyQualifiedName"].startswith(
             "math-helper/add#/tools/0"
         )

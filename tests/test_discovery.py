@@ -1,9 +1,9 @@
 import shutil
 from pathlib import Path
 
-from mcpscan.discovery import discover, load_config
-from mcpscan.discovery.clients import Env
-from mcpscan.discovery.jsonc import loads
+from mcpiranha.discovery import discover, load_config
+from mcpiranha.discovery.clients import Env
+from mcpiranha.discovery.jsonc import loads
 
 CONFIGS = Path(__file__).parent.parent / "fixtures" / "configs"
 

@@ -61,7 +61,7 @@ cost control, no vendor lock-in, works air-gapped. Additions I'd make:
 
 ### 2.3 Another way to "plug in AI": the scanner as an MCP server
 
-Complementary to BYO-model: expose the scanner *itself* as an MCP server (`mcpscan serve`). Then Claude Code,
+Complementary to BYO-model: expose the scanner *itself* as an MCP server (`mcpiranha serve`). Then Claude Code,
 Cursor, etc. can call `scan_server` / `explain_finding` before installing something. The agent only ever receives
 our structured findings, never the raw untrusted descriptions, so we don't become an injection relay.
 
@@ -71,7 +71,7 @@ Enumerating a stdio MCP server means **running it**. So:
 
 - Default mode only reads config files and package metadata — nothing is launched.
 - Launching (`--connect`) happens inside a Docker sandbox, in two steps (as built; see the module docstring of
-  `mcpscan/acquire/sandbox.py`): the package is **downloaded** in a container with network access but without
+  `mcpiranha/acquire/sandbox.py`): the package is **downloaded** in a container with network access but without
   running its code (`npm --ignore-scripts`, PyPI wheels only), then the server **runs** from that read-only
   volume with no network, no capabilities, no privilege escalation, a non-root user and resource limits.
   `--allow-network` and `--allow-install-scripts` relax this per run. A logging egress proxy is still Phase 4.
@@ -105,7 +105,7 @@ flowchart LR
 
   R & L & DY & SC --> F[Findings Aggregator<br/>dedupe · verify evidence · score]
   F --> TF[Toxic-flow Analyzer<br/>cross-server]
-  TF --> P[Policy Engine<br/>.mcpscan.yaml]
+  TF --> P[Policy Engine<br/>.mcpiranha.yaml]
   P --> OUT[Reporters<br/>TTY · JSON · SARIF · HTML · MD]
   F <--> LOCK[(mcp-lock.json<br/>pinned hashes)]
 
@@ -287,10 +287,10 @@ names/schemas/known servers, refined by L2). Then over the **whole installed set
   chain, e.g. `github.get_issue → filesystem.read_file → slack.post_message`.
 - `ingests_untrusted_content` + `executes_code` / `destructive` → injection-to-RCE / data loss path.
 
-As built (`mcpscan/flows`, `rules/builtin/toxic_flows.py`): labels come from tool names, parameter names and a
+As built (`mcpiranha/flows`, `rules/builtin/toxic_flows.py`): labels come from tool names, parameter names and a
 table of well-known servers; annotations and descriptions are not used (calibration showed both are unreliable).
 Single-server chains are reported at lower severity than cross-server ones; auto-approved steps raise it.
-`mcpscan flows` prints each client's capabilities and chains; an HTML graph is not built yet.
+`mcpiranha flows` prints each client's capabilities and chains; an HTML graph is not built yet.
 
 ### 5.8 Dynamic behavior (`MCP-DY`, opt-in)
 - **Honeytokens:** sandbox `$HOME` is seeded with fake `~/.ssh/id_rsa`, `~/.aws/credentials`, `.env`, browser
@@ -331,8 +331,8 @@ class LLMProvider(Protocol):
 Responses are validated straight into Pydantic models, so each task's prompt and output schema stay in one place.
 - Adapters: Anthropic, OpenAI, **OpenAI-compatible** (covers Ollama, LM Studio, vLLM, llama.cpp, OpenRouter,
   Azure, most gateways), Bedrock, Vertex. One generic adapter gets ~90% of users.
-- Configured via `~/.config/mcpscan/config.yaml` or env (`MCPSCAN_LLM_PROVIDER`, `MCPSCAN_LLM_MODEL`,
-  `MCPSCAN_LLM_BASE_URL`, provider API key env vars). Keys never written to reports or cache.
+- Configured via `~/.config/mcpiranha/config.yaml` or env (`MCPIRANHA_LLM_PROVIDER`, `MCPIRANHA_LLM_MODEL`,
+  `MCPIRANHA_LLM_BASE_URL`, provider API key env vars). Keys never written to reports or cache.
 - Fallback when the model lacks native structured output: JSON-in-text + schema validation + one repair retry.
 - Optional **tiering**: a cheap model for bulk triage, a strong model for escalations
   (e.g. `claude-haiku-5-5` → `claude-sonnet-5-5`, or a local model → hosted model).
@@ -348,7 +348,7 @@ Responses are validated straight into Pydantic models, so each task's prompt and
 | `explain` | finding | human-readable explanation & fix (reporting only) |
 
 ### 6.3 Determinism & caching
-Temperature 0, prompt version + model id + content hash as cache key, results stored in `~/.cache/mcpscan/`.
+Temperature 0, prompt version + model id + content hash as cache key, results stored in `~/.cache/mcpiranha/`.
 Reports record which model and prompt versions produced each LLM finding.
 
 ---
@@ -357,24 +357,24 @@ Reports record which model and prompt versions produced each LLM finding.
 
 ### 7.1 CLI
 ```bash
-mcpscan scan                          # auto-discover all local client configs, static only
-mcpscan scan --connect                # also launch servers in sandbox and enumerate tools
-mcpscan scan .mcp.json                # a specific config
-mcpscan scan npm:@acme/mcp-server@1.2.3
-mcpscan scan ./path/to/server-repo    # source + metadata
-mcpscan scan https://mcp.example.com/mcp
-mcpscan scan --llm ollama:qwen3 --llm-scope metadata
-mcpscan scan --no-llm --format sarif -o results.sarif
+mcpiranha scan                          # auto-discover all local client configs, static only
+mcpiranha scan --connect                # also launch servers in sandbox and enumerate tools
+mcpiranha scan .mcp.json                # a specific config
+mcpiranha scan npm:@acme/mcp-server@1.2.3
+mcpiranha scan ./path/to/server-repo    # source + metadata
+mcpiranha scan https://mcp.example.com/mcp
+mcpiranha scan --llm ollama:qwen3 --llm-scope metadata
+mcpiranha scan --no-llm --format sarif -o results.sarif
 
-mcpscan lock / mcpscan verify         # pin and verify tool hashes (rug-pull detection)
-mcpscan inspect <server>              # pretty-print everything the model would see, hidden chars revealed
-mcpscan bench --llm <provider:model>  # score a model on the fixture corpus
-mcpscan serve                         # run as an MCP server (§2.3)
-mcpscan proxy                         # later: runtime guard between client and server
+mcpiranha lock / mcpiranha verify         # pin and verify tool hashes (rug-pull detection)
+mcpiranha inspect <server>              # pretty-print everything the model would see, hidden chars revealed
+mcpiranha bench --llm <provider:model>  # score a model on the fixture corpus
+mcpiranha serve                         # run as an MCP server (§2.3)
+mcpiranha proxy                         # later: runtime guard between client and server
 ```
 Exit codes: `0` clean, `1` findings ≥ policy threshold, `2` scanner error.
 
-### 7.2 Policy file (`.mcpscan.yaml`)
+### 7.2 Policy file (`.mcpiranha.yaml`)
 ```yaml
 fail_on: high
 strict: true                     # partial scans (unreachable servers) fail CI
@@ -412,7 +412,7 @@ easy to analyze.
 
 | Concern | Choice |
 |---|---|
-| Packaging / env | `uv`, `pyproject.toml`, `src/` layout; distributed on PyPI → `uvx mcpscan` / `pipx install mcpscan` |
+| Packaging / env | `uv`, `pyproject.toml`, `src/` layout; distributed on PyPI → `uvx mcpiranha` / `pipx install mcpiranha` |
 | Models & schemas | Pydantic v2 (IR, findings, LLM output schemas, report JSON Schema) |
 | CLI & terminal output | Typer + Rich |
 | MCP client & `serve` mode | Official `mcp` Python SDK (stdio, Streamable HTTP, SSE) |
@@ -425,17 +425,17 @@ easy to analyze.
 | Quality | `pytest` (+ `pytest-asyncio`), `ruff`, `pyright` in strict mode |
 
 **Keep the base install light.** Heavy dependencies go in optional extras:
-`mcpscan` (rules, discovery, metadata scan, reports) · `mcpscan[llm]` · `mcpscan[ml]` · `mcpscan[sandbox]` ·
-`mcpscan[sast]` · `mcpscan[all]`. Each feature checks its extra is installed and tells you which one to add.
+`mcpiranha` (rules, discovery, metadata scan, reports) · `mcpiranha[llm]` · `mcpiranha[ml]` · `mcpiranha[sandbox]` ·
+`mcpiranha[sast]` · `mcpiranha[all]`. Each feature checks its extra is installed and tells you which one to add.
 
 **What we give up vs. TypeScript:** there's no type-aware analysis of JS/TS servers through the TypeScript compiler
 API. tree-sitter plus Semgrep taint mode covers the common sinks. If deeper analysis turns out to be needed, add a
 small optional Node helper later rather than changing the core language.
 
 ```
-mcpscan/
+mcpiranha/
   pyproject.toml
-  src/mcpscan/
+  src/mcpiranha/
     core/          # IR models, Finding model, pipeline orchestration, scoring, lockfile
     discovery/     # client config parsers (one module per client)
     acquire/       # npm/pypi/git fetchers, MCP client for enumeration
@@ -448,14 +448,14 @@ mcpscan/
     flows/         # capability labelling + toxic-flow graph
     report/        # tty, json, sarif, md, html (Jinja2 templates)
     cli.py         # Typer app
-    server.py      # `mcpscan serve`
+    server.py      # `mcpiranha serve`
   tests/
   fixtures/        # vulnerable + benign servers, snapshots, expected findings
   docs/
 ```
 
 Rules are plugins with a uniform interface so the community can contribute them. Built-in rules are found through a
-registry decorator, and third-party rule packs through the `mcpscan.rules` entry-point group:
+registry decorator, and third-party rule packs through the `mcpiranha.rules` entry-point group:
 ```python
 from abc import ABC, abstractmethod
 from typing import ClassVar, Literal
@@ -484,7 +484,7 @@ class Rule(ABC):
 | 2 (in progress) | **Toxic flows** ✅, local classifier (experimental ✅; MCP-tuned model next), adversarial corpus + `bench`, BYO-LLM layer | The differentiating features |
 | 3 | Source SAST + LLM triage, supply-chain analyzer, npm/PyPI/git targets | Pre-install vetting |
 | 4 | Dynamic sandbox: honeytokens, egress, tracing, `--invoke`, fuzzing | Behavioral evidence |
-| 5 | `mcpscan serve`, `mcpscan proxy` runtime guard, registry-wide batch scanning | Continuous protection |
+| 5 | `mcpiranha serve`, `mcpiranha proxy` runtime guard, registry-wide batch scanning | Continuous protection |
 
 ---
 
@@ -496,7 +496,8 @@ class Rule(ABC):
 3. License / distribution (open-source CLI with optional hosted registry scanning later?).
 4. ~~Which classifier model~~: protectai/deberta-v3-base-prompt-injection-v2 (Apache-2.0), downloaded rather
    than redistributed. Next question: fine-tune an MCP-specific model on the calibration corpus.
-5. Package name for PyPI: `mcpscan` collides with Invariant's `mcp-scan` under PyPI's name normalization.
+5. ~~Package name~~: the working name `mcpscan` collided with Invariant's `mcp-scan` under PyPI's name
+   normalization; renamed to MCPiranha (package, CLI and settings) on 2026-10-23.
 
 ## 12. Prior art to study
 Invariant Labs' `mcp-scan` (now part of Snyk), Cisco's MCP scanner, and the MCP specification's security best

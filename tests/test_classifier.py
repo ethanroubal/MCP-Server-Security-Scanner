@@ -1,4 +1,4 @@
-"""Classifier plumbing, with a fake model. MCPSCAN_ML_TESTS=1 also runs the real one."""
+"""Classifier plumbing, with a fake model. MCPIRANHA_ML_TESTS=1 also runs the real one."""
 
 from __future__ import annotations
 
@@ -10,12 +10,12 @@ from typing import cast
 
 import pytest
 
-from mcpscan import classifier as clf
-from mcpscan.classifier import InjectionClassifier
-from mcpscan.classifier.rule import ClassifierRule, addressed_sentences
-from mcpscan.core.matching import MatchView
-from mcpscan.core.models import Detector, Finding, Severity
-from mcpscan.rules.base import RuleContext
+from mcpiranha import classifier as clf
+from mcpiranha.classifier import InjectionClassifier
+from mcpiranha.classifier.rule import ClassifierRule, addressed_sentences
+from mcpiranha.core.matching import MatchView
+from mcpiranha.core.models import Detector, Finding, Severity
+from mcpiranha.rules.base import RuleContext
 from tests.helpers import snapshot_with_description
 
 
@@ -81,7 +81,7 @@ def test_gitblob_digest_matches_git(tmp_path: Path) -> None:
 
 
 def test_tampered_download_is_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("MCPSCAN_MODEL_DIR", str(tmp_path))
+    monkeypatch.setenv("MCPIRANHA_MODEL_DIR", str(tmp_path))
     monkeypatch.setattr(clf, "FILES", {"onnx/config.json": ("sha256", "0" * 64)})
 
     class Response:
@@ -106,8 +106,10 @@ def test_tampered_download_is_rejected(tmp_path: Path, monkeypatch: pytest.Monke
     assert not any(p.is_file() for p in tmp_path.rglob("*"))  # nothing unverified is kept
 
 
-@pytest.mark.skipif(os.environ.get("MCPSCAN_ML_TESTS") != "1",
-                    reason="set MCPSCAN_ML_TESTS=1 (needs mcpscan[ml] and the model)")  # fmt: skip
+@pytest.mark.skipif(
+    os.environ.get("MCPIRANHA_ML_TESTS") != "1",
+    reason="set MCPIRANHA_ML_TESTS=1 (needs mcpiranha[ml] and the model)",
+)
 def test_real_model_scores_a_reworded_attack_highly() -> None:
     model = clf.load()
     [attack, benign] = model.score([

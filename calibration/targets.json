@@ -91,7 +91,7 @@
         "@upstash/context7-mcp@4.4.4"
       ],
       "env": {
-        "CONTEXT7_API_KEY": "mcpscan-calibration-dummy"
+        "CONTEXT7_API_KEY": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -108,7 +108,7 @@
         "telnyx@6.29.3"
       ],
       "env": {
-        "TELNYX_API_KEY": "mcpscan-calibration-dummy"
+        "TELNYX_API_KEY": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -156,7 +156,7 @@
         "firecrawl-mcp@3.33.4"
       ],
       "env": {
-        "FIRECRAWL_API_KEY": "mcpscan-calibration-dummy"
+        "FIRECRAWL_API_KEY": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -222,8 +222,8 @@
         "@zereight/mcp-gitlab@2.3.6"
       ],
       "env": {
-        "GITLAB_PERSONAL_ACCESS_TOKEN": "mcpscan-calibration-dummy",
-        "GITLAB_JOB_TOKEN": "mcpscan-calibration-dummy"
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "mcpiranha-calibration-dummy",
+        "GITLAB_JOB_TOKEN": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -256,8 +256,8 @@
         "mongodb-mcp-server@2.1.0"
       ],
       "env": {
-        "MDB_MCP_API_CLIENT_SECRET": "mcpscan-calibration-dummy",
-        "MDB_MCP_VOYAGE_API_KEY": "mcpscan-calibration-dummy"
+        "MDB_MCP_API_CLIENT_SECRET": "mcpiranha-calibration-dummy",
+        "MDB_MCP_VOYAGE_API_KEY": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -289,7 +289,7 @@
         "@sentry/mcp-server@0.42.0"
       ],
       "env": {
-        "SENTRY_ACCESS_TOKEN": "mcpscan-calibration-dummy"
+        "SENTRY_ACCESS_TOKEN": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -352,7 +352,7 @@
         "@supabase/mcp-server-supabase@0.14.0"
       ],
       "env": {
-        "SUPABASE_ACCESS_TOKEN": "mcpscan-calibration-dummy"
+        "SUPABASE_ACCESS_TOKEN": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -370,7 +370,7 @@
         "--stdio"
       ],
       "env": {
-        "FIGMA_API_KEY": "mcpscan-calibration-dummy"
+        "FIGMA_API_KEY": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -462,8 +462,8 @@
         "@bytebase/dbhub@1.5.0"
       ],
       "env": {
-        "DB_PASSWORD": "mcpscan-calibration-dummy",
-        "SSH_PASSWORD": "mcpscan-calibration-dummy"
+        "DB_PASSWORD": "mcpiranha-calibration-dummy",
+        "SSH_PASSWORD": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -512,7 +512,7 @@
         "@hostinger/mcp@3.6.0"
       ],
       "env": {
-        "HOSTINGER_API_TOKEN": "mcpscan-calibration-dummy"
+        "HOSTINGER_API_TOKEN": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -544,7 +544,7 @@
         "hevy-mcp@3.2.1"
       ],
       "env": {
-        "HEVY_API_KEY": "mcpscan-calibration-dummy"
+        "HEVY_API_KEY": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -637,7 +637,7 @@
         "@brave/brave-search-mcp-server@2.1.3"
       ],
       "env": {
-        "BRAVE_API_KEY": "mcpscan-calibration-dummy"
+        "BRAVE_API_KEY": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -654,7 +654,7 @@
         "tavily-mcp@0.2.15"
       ],
       "env": {
-        "TAVILY_API_KEY": "mcpscan-calibration-dummy"
+        "TAVILY_API_KEY": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -671,8 +671,8 @@
         "@browserstack/mcp-server@2.2.4"
       ],
       "env": {
-        "BROWSERSTACK_USERNAME": "mcpscan-calibration-dummy",
-        "BROWSERSTACK_ACCESS_KEY": "mcpscan-calibration-dummy"
+        "BROWSERSTACK_USERNAME": "mcpiranha-calibration-dummy",
+        "BROWSERSTACK_ACCESS_KEY": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -719,7 +719,7 @@
         "@dynatrace-oss/dynatrace-mcp-server@2.1.2"
       ],
       "env": {
-        "DT_ENVIRONMENT": "mcpscan-calibration-dummy"
+        "DT_ENVIRONMENT": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -735,7 +735,7 @@
         "-y",
         "@microsoft/powerbi-modeling-mcp@1.0.0",
         "--start",
-        "mcpscan-calibration-dummy"
+        "mcpiranha-calibration-dummy"
       ],
       "env": {}
     }
@@ -753,9 +753,9 @@
         "claude-flow@2.0.0-alpha.107"
       ],
       "env": {
-        "ANTHROPIC_API_KEY": "mcpscan-calibration-dummy",
-        "GITHUB_TOKEN": "mcpscan-calibration-dummy",
-        "FLOW_NEXUS_API_KEY": "mcpscan-calibration-dummy"
+        "ANTHROPIC_API_KEY": "mcpiranha-calibration-dummy",
+        "GITHUB_TOKEN": "mcpiranha-calibration-dummy",
+        "FLOW_NEXUS_API_KEY": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -862,7 +862,7 @@
         "@brightdata/mcp@4.1.0"
       ],
       "env": {
-        "API_TOKEN": "mcpscan-calibration-dummy"
+        "API_TOKEN": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -895,7 +895,7 @@
       ],
       "env": {
         "SEARXNG_URL": "https://example.invalid",
-        "AUTH_PASSWORD": "mcpscan-calibration-dummy"
+        "AUTH_PASSWORD": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -1038,7 +1038,7 @@
         "mcp"
       ],
       "env": {
-        "EDGAR_IDENTITY": "mcpscan-calibration-dummy"
+        "EDGAR_IDENTITY": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -1085,8 +1085,8 @@
       ],
       "env": {
         "CLICKHOUSE_HOST": "https://example.invalid",
-        "CLICKHOUSE_USER": "mcpscan-calibration-dummy",
-        "CLICKHOUSE_PASSWORD": "mcpscan-calibration-dummy"
+        "CLICKHOUSE_USER": "mcpiranha-calibration-dummy",
+        "CLICKHOUSE_PASSWORD": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -1247,7 +1247,7 @@
         "skylos==3.5.10"
       ],
       "env": {
-        "SKYLOS_API_KEY": "mcpscan-calibration-dummy"
+        "SKYLOS_API_KEY": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -1263,9 +1263,9 @@
         "falcon-mcp==0.19.0"
       ],
       "env": {
-        "FALCON_CLIENT_ID": "mcpscan-calibration-dummy",
-        "FALCON_CLIENT_SECRET": "mcpscan-calibration-dummy",
-        "FALCON_MCP_API_KEY": "mcpscan-calibration-dummy"
+        "FALCON_CLIENT_ID": "mcpiranha-calibration-dummy",
+        "FALCON_CLIENT_SECRET": "mcpiranha-calibration-dummy",
+        "FALCON_MCP_API_KEY": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -1296,9 +1296,9 @@
       ],
       "env": {
         "UNIFI_HOST": "https://example.invalid",
-        "UNIFI_USERNAME": "mcpscan-calibration-dummy",
-        "UNIFI_PASSWORD": "mcpscan-calibration-dummy",
-        "UNIFI_API_KEY": "mcpscan-calibration-dummy"
+        "UNIFI_USERNAME": "mcpiranha-calibration-dummy",
+        "UNIFI_PASSWORD": "mcpiranha-calibration-dummy",
+        "UNIFI_API_KEY": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -1328,7 +1328,7 @@
         "armor-mcp==0.6.1"
       ],
       "env": {
-        "ARMOR_API_KEY": "mcpscan-calibration-dummy"
+        "ARMOR_API_KEY": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -1359,7 +1359,7 @@
         "attestari-mcp==2.9.0"
       ],
       "env": {
-        "ATTESTARI_API_KEY": "mcpscan-calibration-dummy"
+        "ATTESTARI_API_KEY": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -1385,8 +1385,8 @@
       ],
       "env": {
         "GRAFANA_URL": "https://example.invalid",
-        "GRAFANA_SERVICE_ACCOUNT_TOKEN": "mcpscan-calibration-dummy",
-        "GRAFANA_PASSWORD": "mcpscan-calibration-dummy"
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN": "mcpiranha-calibration-dummy",
+        "GRAFANA_PASSWORD": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -1432,8 +1432,8 @@
         "docker.io/mongodb/mongodb-mcp-server:2.1.0"
       ],
       "env": {
-        "MDB_MCP_API_CLIENT_SECRET": "mcpscan-calibration-dummy",
-        "MDB_MCP_VOYAGE_API_KEY": "mcpscan-calibration-dummy"
+        "MDB_MCP_API_CLIENT_SECRET": "mcpiranha-calibration-dummy",
+        "MDB_MCP_VOYAGE_API_KEY": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -1454,7 +1454,7 @@
         "docker.io/sonarsource/sonarqube-mcp"
       ],
       "env": {
-        "SONARQUBE_TOKEN": "mcpscan-calibration-dummy"
+        "SONARQUBE_TOKEN": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -1477,8 +1477,8 @@
         "docker.io/zereight050/gitlab-mcp:2.3.6"
       ],
       "env": {
-        "GITLAB_PERSONAL_ACCESS_TOKEN": "mcpscan-calibration-dummy",
-        "GITLAB_JOB_TOKEN": "mcpscan-calibration-dummy"
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "mcpiranha-calibration-dummy",
+        "GITLAB_JOB_TOKEN": "mcpiranha-calibration-dummy"
       }
     }
   },
@@ -1550,7 +1550,7 @@
         "docker.io/domdomegg/airtable-mcp-server:1.14.0"
       ],
       "env": {
-        "AIRTABLE_API_KEY": "mcpscan-calibration-dummy"
+        "AIRTABLE_API_KEY": "mcpiranha-calibration-dummy"
       }
     }
   },

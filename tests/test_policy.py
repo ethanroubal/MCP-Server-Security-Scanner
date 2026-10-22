@@ -5,11 +5,11 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from mcpscan.cli import EXIT_ERROR, EXIT_FINDINGS, EXIT_OK, app
-from mcpscan.core.io import load_snapshots
-from mcpscan.core.pipeline import scan
-from mcpscan.core.policy import Policy, PolicyError
-from mcpscan.rules import load_rules
+from mcpiranha.cli import EXIT_ERROR, EXIT_FINDINGS, EXIT_OK, app
+from mcpiranha.core.io import load_snapshots
+from mcpiranha.core.pipeline import scan
+from mcpiranha.core.policy import Policy, PolicyError
+from mcpiranha.rules import load_rules
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "metadata"
 POISONED = FIXTURES / "poisoned-important" / "snapshots.json"
@@ -17,7 +17,7 @@ runner = CliRunner()
 
 
 def _policy(tmp_path: Path, text: str) -> Path:
-    path = tmp_path / ".mcpscan.yaml"
+    path = tmp_path / ".mcpiranha.yaml"
     path.write_text(text, encoding="utf-8")
     return path
 

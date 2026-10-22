@@ -1,5 +1,5 @@
 [project]
-name = "mcpscan"
+name = "MCPiranha"
 version = "0.0.1"
 description = "Security scanner for Model Context Protocol (MCP) servers"
 readme = "README.md"
@@ -21,7 +21,7 @@ Issues = "https://github.com/ethanroubal/MCP-Server-Security-Scanner/issues"
 Documentation = "https://github.com/ethanroubal/MCP-Server-Security-Scanner/tree/main/docs"
 
 [project.scripts]
-mcpscan = "mcpscan.cli:app"
+mcpiranha = "mcpiranha.cli:app"
 
 [project.optional-dependencies]
 ml = [
@@ -31,7 +31,7 @@ ml = [
 ]
 
 # Third-party rule packs register here, e.g.
-# [project.entry-points."mcpscan.rules"]
+# [project.entry-points."mcpiranha.rules"]
 # my_rules = "my_package.rules"
 
 [dependency-groups]
@@ -47,7 +47,7 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/mcpscan"]
+packages = ["src/mcpiranha"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

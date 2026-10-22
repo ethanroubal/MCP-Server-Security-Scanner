@@ -1,4 +1,4 @@
-from mcpscan.core.models import Origin, ServerSnapshot, ToolDef
+from mcpiranha.core.models import Origin, ServerSnapshot, ToolDef
 
 
 def snapshot_with_description(description: str, *, name: str = "test") -> ServerSnapshot:

@@ -19,7 +19,7 @@ from typing import Any
 
 import yaml
 
-from mcpscan.core.text import reveal
+from mcpiranha.core.text import reveal
 
 HERE = Path(__file__).parent
 SEVERITIES = ("critical", "high", "medium", "low", "info")

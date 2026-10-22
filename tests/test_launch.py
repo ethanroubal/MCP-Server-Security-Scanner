@@ -1,7 +1,7 @@
 import pytest
 
-from mcpscan.core.launch import argv_pointer, docker_run, package_ref
-from mcpscan.core.models import Launch
+from mcpiranha.core.launch import argv_pointer, docker_run, package_ref
+from mcpiranha.core.models import Launch
 
 DIGEST = "sha256:" + "ab" * 32
 

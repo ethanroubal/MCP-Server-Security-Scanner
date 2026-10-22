@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from mcpscan.cli import EXIT_ERROR, EXIT_FINDINGS, EXIT_OK, app
+from mcpiranha.cli import EXIT_ERROR, EXIT_FINDINGS, EXIT_OK, app
 from tests.helpers import snapshot_with_description
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "metadata"

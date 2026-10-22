@@ -1,8 +1,8 @@
 import pytest
 
-from mcpscan.core.models import Finding, Severity
-from mcpscan.rules.base import RuleContext
-from mcpscan.rules.builtin.invisible_unicode import InvisibleUnicode
+from mcpiranha.core.models import Finding, Severity
+from mcpiranha.rules.base import RuleContext
+from mcpiranha.rules.builtin.invisible_unicode import InvisibleUnicode
 from tests.helpers import snapshot_with_description
 
 

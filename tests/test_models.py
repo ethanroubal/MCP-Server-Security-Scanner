@@ -3,7 +3,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from mcpscan.core.models import Launch, Origin, ServerSnapshot, ToolDef
+from mcpiranha.core.models import Launch, Origin, ServerSnapshot, ToolDef
 from tests.helpers import snapshot_with_description
 
 

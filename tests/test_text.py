@@ -1,5 +1,5 @@
-from mcpscan.core.models import Origin, PromptArgument, PromptDef, ServerSnapshot, ToolDef
-from mcpscan.core.text import iter_text_fields, pointer_token, reveal
+from mcpiranha.core.models import Origin, PromptArgument, PromptDef, ServerSnapshot, ToolDef
+from mcpiranha.core.text import iter_text_fields, pointer_token, reveal
 
 
 def test_walks_nested_schema_text() -> None:

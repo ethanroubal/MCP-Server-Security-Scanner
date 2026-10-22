@@ -5,7 +5,7 @@ Hidden characters are built with chr() so this file itself contains none.
 
 import re
 
-from mcpscan.core.matching import MatchView, carries_hidden_text
+from mcpiranha.core.matching import MatchView, carries_hidden_text
 
 IGNORE = re.compile(r"ignore previous", re.IGNORECASE)
 ZWSP = chr(0x200B)

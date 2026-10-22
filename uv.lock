@@ -426,7 +426,7 @@ wheels = [
 ]
 
 [[package]]
-name = "mcpscan"
+name = "mcpiranha"
 version = "0.0.1"
 source = { editable = "." }
 dependencies = [

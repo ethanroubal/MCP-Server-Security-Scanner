@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from mcpscan.core.models import Launch, ServerSnapshot
-from mcpscan.discovery import discover, load_config
-from mcpscan.discovery.clients import Env
+from mcpiranha.core.models import Launch, ServerSnapshot
+from mcpiranha.discovery import discover, load_config
+from mcpiranha.discovery.clients import Env
 
 CONFIGS = Path(__file__).parent.parent / "fixtures" / "configs"
 CLINE_STORAGE = (
@@ -145,7 +145,7 @@ def test_load_config_detects_new_clients(tmp_path: Path, dest: str, fixture: str
 
 
 def test_placeholders_in_new_formats_are_not_secrets(found: dict[str, ServerSnapshot]) -> None:
-    from mcpscan.core.secrets import classify
+    from mcpiranha.core.secrets import classify
 
     for sid in ("opencode:user:local-db", "codex:user:tracker", "zed:user:remote-docs"):
         launch = _launch(found, sid)

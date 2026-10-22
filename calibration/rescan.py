@@ -13,10 +13,10 @@ import argparse
 import json
 from pathlib import Path
 
-from mcpscan.core.io import load_snapshots
-from mcpscan.core.pipeline import scan
-from mcpscan.report import json_report
-from mcpscan.rules import load_rules
+from mcpiranha.core.io import load_snapshots
+from mcpiranha.core.pipeline import scan
+from mcpiranha.report import json_report
+from mcpiranha.rules import load_rules
 
 HERE = Path(__file__).parent
 

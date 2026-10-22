@@ -43,5 +43,5 @@ jobs:
       - run: uv sync --locked
       - name: Sandboxed scan of a real server
         env:
-          MCPSCAN_DOCKER_TESTS: "1"
+          MCPIRANHA_DOCKER_TESTS: "1"
         run: uv run pytest -q tests/test_sandbox.py -k real_docker

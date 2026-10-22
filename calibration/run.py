@@ -1,13 +1,13 @@
-"""Scan every server in calibration/targets.json with `mcpscan scan --connect` (Docker sandbox).
+"""Scan every server in calibration/targets.json with `mcpiranha scan --connect` (Docker sandbox).
 
 Usage: uv run python calibration/run.py [--run NAME] [--jobs 4] [--timeout 120] [--only SUBSTRING]
 
 Each target is scanned on its own, from its own directory, as a project `.mcp.json`. That keeps
-cross-server rules from pairing up unrelated servers and keeps any local .mcpscan.yaml out of
+cross-server rules from pairing up unrelated servers and keeps any local .mcpiranha.yaml out of
 it. Re-running the same --run skips targets that already have a report, so it can be resumed.
 
-Output in calibration/results/<run>/: reports/*.json (mcpscan JSON reports), snapshots/*.json
-(what each server served, for offline rescans), logs/*.log (mcpscan's stderr).
+Output in calibration/results/<run>/: reports/*.json (mcpiranha JSON reports), snapshots/*.json
+(what each server served, for offline rescans), logs/*.log (mcpiranha's stderr).
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ def scan(target: dict[str, Any], run_dir: Path, timeout: float, extra: list[str]
         json.dumps({"mcpServers": {name: target["config"]}}, indent=2), encoding="utf-8"
     )
     command = [
-        str(Path(sys.executable).with_name("mcpscan")), "scan", ".", "--connect", "--no-lock",
+        str(Path(sys.executable).with_name("mcpiranha")), "scan", ".", "--connect", "--no-lock",
         "--timeout", str(timeout), "--jobs", "1", "-f", "json", "-o", str(report.resolve()),
         "--save-snapshots", str((run_dir / "snapshots").resolve()), *extra,
     ]  # fmt: skip
