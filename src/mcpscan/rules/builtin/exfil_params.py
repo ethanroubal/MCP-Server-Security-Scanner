@@ -15,6 +15,8 @@ from mcpscan.core.matching import MatchView
 from mcpscan.core.models import Category, Confidence, Evidence, Finding, Location, Severity
 from mcpscan.core.text import pointer_token
 from mcpscan.rules.base import Rule, RuleContext
+from mcpscan.rules.builtin.instruction_phrases import instruction_matches, steers_model
+from mcpscan.rules.builtin.sensitive_paths import sensitive_hits, sentence_around
 from mcpscan.rules.registry import register
 
 # Names with no plausible use other than collecting context from the model.
@@ -36,7 +38,8 @@ _SOLICITS = re.compile(
     # "contents of" only counts when what follows is private: not "the content of the page"
     r"\bcontents?\s+of\s+(any\s+|all\s+|the\s+|your\s+|the\s+user'?s\s+)?(files?\b|~|/|\.\w|"
     r"local\b|conversation|chat|messages?\b|context\b|history\b|clipboard|environment)|"
-    r"\bsee\s+(the\s+)?instructions\b|\brequired\s+context\b|\benvironment\s+variables\b",
+    r"\bsee\s+(the\s+)?instructions\b|\brequired\s+context\b|"
+    r"\b(all|every|your)\s+(of\s+the\s+)?environment\s+variables\b",
     re.IGNORECASE,
 )
 
@@ -64,6 +67,15 @@ def _properties(schema: Any, pointer: str) -> Iterator[tuple[str, dict[str, Any]
         if isinstance(options, list):
             for i, option in enumerate(cast(list[Any], options)):
                 yield from _properties(option, f"{pointer}/{key}/{i}")
+
+
+def _suspicious_reference(tool_view: MatchView, evidence: Evidence) -> bool:
+    """The tool description's sentence that fills this parameter asks for something private."""
+    if evidence.start is None or evidence.end is None:
+        return False
+    sentence = MatchView.of(sentence_around(tool_view.source, evidence.start, evidence.end))
+    return bool(sensitive_hits(sentence) or _SOLICITS.search(sentence.text)
+                or steers_model(instruction_matches(sentence)))  # fmt: skip
 
 
 def _quoted_reference(name: str) -> re.Pattern[str]:
@@ -102,7 +114,15 @@ class ExfilParameters(Rule):
 
                 strong = normalized in STRONG_NAMES
                 weak = normalized in WEAK_NAMES
-                if not (strong or solicit or (weak and referenced)):
+                # Calibration: hash fields ("SHA1 of the contents of the file"), `comment` and
+                # `environment` parameters are everywhere. A generic name needs a soliciting
+                # description, or a tool description that asks for something suspicious for it.
+                referenced = (
+                    [ev for ev in referenced if _suspicious_reference(tool_view, ev)]
+                    if (not strong)
+                    else referenced
+                )
+                if not (strong or (weak and (solicit or referenced))):
                     continue
 
                 reasons: list[str] = []

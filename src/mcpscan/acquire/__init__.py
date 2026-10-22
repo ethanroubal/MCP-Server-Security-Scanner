@@ -28,6 +28,8 @@ class ConnectOptions:
     jobs: int = 4  # servers connected to at the same time
     extra_headers: Mapping[str, str] | None = None  # --header, for a single URL target
     oauth_open: OpenUrl | None = None  # --oauth: opens the sign-in URL (a browser, normally)
+    allow_network: bool = False  # sandboxed servers may use the network while running
+    allow_install_scripts: bool = False  # npm install scripts and PyPI source builds may run
 
 
 def _auth_hint(snapshot: ServerSnapshot, options: ConnectOptions, message: str,
@@ -81,6 +83,8 @@ async def connect_one(
             environ=os.environ if environ is None else environ,
             extra_headers=options.extra_headers,
             oauth_open=options.oauth_open,
+            allow_network=options.allow_network,
+            allow_install_scripts=options.allow_install_scripts,
         )
         if progress:
             progress(snapshot, f"connecting ({prepared.label})")

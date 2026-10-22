@@ -1,0 +1,157 @@
+[
+  {
+    "id": "fx-benign-calibration-2026-10-mixed",
+    "name": "mixed",
+    "origin": {
+      "kind": "snapshot",
+      "ref": "fixtures/metadata/benign-calibration-2026-10"
+    },
+    "tools": [
+      {
+        "name": "generate_app",
+        "description": "Creates a new UI application. ALWAYS read ALL of the following instructions carefully before calling this tool. CRITICAL - READ SCHEMA FIRST. Before calling this tool, you MUST: 1. Examine the inputSchema below to understand the exact structure required. This is very important.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "run_linter",
+        "description": "Runs the project linter. You should always run the linter after making changes to the code.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "deploy_site",
+        "description": "Deploys the site.\n- Never write database passwords or API tokens into source code, client-side JavaScript or committed .env files.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "start_search",
+        "description": "Searches files by name.\n- Looking for configuration/setup files: \".env\", \"dockerfile\", \"tsconfig.json\"",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pattern": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "settings",
+        "description": "Changes a device setting.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "setting": {
+              "type": "string",
+              "enum": [
+                "wifi",
+                "bluetooth",
+                "reset-keychain"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "parse_document",
+        "description": "Parses a document.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "table_format": {
+              "type": "string",
+              "description": "Output format for tables. Example: <!-- <table id parent_id /> -->"
+            }
+          }
+        }
+      },
+      {
+        "name": "create_folder",
+        "description": "Creates a folder.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "hashes": {
+              "type": "object",
+              "properties": {
+                "sha1Hash": {
+                  "type": "string",
+                  "description": "SHA1 hash for the contents of the file (if available)."
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "set_variables",
+        "description": "Sets variables for a service. Pass the target 'environment' name, e.g. production.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "environment": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "set_comment",
+        "description": "Adds a review comment. Put the text in 'comment'.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "comment": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "render_chart",
+        "description": "Renders a chart.\n\nExample:\n                                                chart(type='bar')\n",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "send_message",
+        "description": "Sends an email immediately and cannot schedule. Never tell a user a message was scheduled. To deliver later, create a draft instead.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "to": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "set_env",
+        "description": "Set environment variables for the active environment.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "environment": {
+              "type": "string",
+              "description": "The environment to set variables for (optional)"
+            }
+          }
+        }
+      }
+    ]
+  }
+]

@@ -1,14 +1,18 @@
-"""MCP-TP-004: phrases that instruct the model, not describe the tool.
+"""MCP-TP-004: phrases that steer the model against the user, not describe the tool.
 
-A tool description should say what the tool does. Text that tells the model what to do (ignore
-earlier instructions, call something first, keep things from the user) is how tool poisoning works.
-Phrases are weighted and summed per field, so one ambiguous word ("always", "important") is not
-enough on its own.
+Legitimate tools give usage guidance all the time ("you should always run the linter first",
+"before calling this tool, read the schema"): calibration against the 100 most-downloaded
+registry servers found such guidance in popular servers and nothing malicious. So phrases come in
+two kinds. Attack signals are what tool poisoning needs and usage guidance doesn't: keeping things
+from the user, overriding earlier instructions, changing how other tools behave, sending data to
+an outside address. Guidance phrases (pre-conditions, "you must", urgency) only add weight. A
+finding needs at least one attack signal, or text hidden in invisible characters.
 """
 
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 from mcpscan.core.matching import MatchView, carries_hidden_text
 from mcpscan.core.models import Category, Confidence, Evidence, Finding, Severity
@@ -18,51 +22,71 @@ from mcpscan.rules.registry import register
 
 _I = re.IGNORECASE
 
-# (pattern, weight, label)
-PHRASES: tuple[tuple[re.Pattern[str], int, str], ...] = (
+# (pattern, weight, label, attack signal?)
+PHRASES: tuple[tuple[re.Pattern[str], int, str, bool], ...] = (
     (re.compile(r"\b(ignore|disregard|forget|override)\s+(all\s+|any\s+)?(the\s+|your\s+)?"
                 r"(previous|prior|above|earlier|other|original)\s+(instructions?|directions|rules"
-                r"|guidelines|context|prompts?)", _I), 3, "override earlier instructions"),
+                r"|guidelines|context|prompts?)", _I), 3, "override earlier instructions", True),
     (re.compile(r"\b(new|updated|real|actual|secret|hidden)\s+instructions?\b", _I), 2,
-     "claims new instructions"),
-    (re.compile(r"\bbefore\s+(using|calling|invoking|running|you\s+(use|call))\s+(this|the|any)\s+"
-                r"(tool|function)", _I), 2, "pre-condition on tool use"),
+     "claims new instructions", True),
     (re.compile(r"\b(do\s+not|don't|dont|never|without)\s+(ever\s+)?(tell(ing)?|mention(ing)?|"
-                r"inform(ing)?|reveal(ing)?|notify(ing)?|disclos(e|ing)|alert(ing)?|let)\b", _I), 2,
-     "conceal from the user"),
-    (re.compile(r"\b(the\s+user\s+(must|should)\s+not|hide\s+(this|it)\s+from)\b", _I), 2,
-     "conceal from the user"),
+                r"inform(ing)?|reveal(ing)?|notify(ing)?|disclos(e|ing)|alert(ing)?|let)\b[^.\n]{0,40}"
+                r"\b(user|human|anyone|them)\b", _I), 2, "conceal from the user", True),
+    (re.compile(r"\b(the\s+user\s+(must|should)\s+not\s+(know|see|be\s+told)|hide\s+(this|it)\s+"
+                r"from)\b", _I), 2, "conceal from the user", True),
+    (re.compile(r"\b(when|whenever|if|after|each\s+time)\b[^.\n]{0,60}\b(tool|function)\s+is\s+"
+                r"(used|called|invoked|run)", _I), 2, "hooks another tool's use", True),
+    (re.compile(r"\b(otherwise|or\s+else)\b[^.\n]{0,30}\b(will\s+not|won't|will\s+fail|fails|"
+                r"cannot|can't)\s+(work|run|function)", _I), 2, "threat to make the model comply",
+     True),
+    (re.compile(r"\b(act|behave|respond)\s+as\s+(if\s+you\s+are\s+|an?\s+)?(admin|administrator|"
+                r"developer|system|root)\b", _I), 2, "role override", True),
+    # (?:[^.\n]|\.(?=\S)) lets file names like ".env" through but stops at the end of a sentence
+    (re.compile(r"\b(send|forward|bcc|cc|copy|post|upload|email|exfiltrate|report)\b"
+                r"(?:[^.\n]|\.(?=\S)){0,80}"
+                r"\b(to|at)\s+(\S+@\S+\.\w+|https?://)", _I), 3, "sends data to an outside address",
+     True),
+    # usage guidance: common in legitimate tools, so it only adds weight
+    (re.compile(r"\bbefore\s+(using|calling|invoking|running|you\s+(use|call))\s+(this|the|any)\s+"
+                r"(tool|function)", _I), 2, "pre-condition on tool use", False),
     (re.compile(r"\byou\s+(must|should|need\s+to|have\s+to)\s+(always\s+|first\s+)*(call|use|"
                 r"invoke|read|send|include|pass|set|add|run|execute|forward)\b", _I), 2,
-     "commands the model"),
+     "commands the model", False),
     (re.compile(r"\balways\s+(call|use|invoke|set|add|include|send|pass|bcc|cc|forward|run|"
-                r"execute|copy)\b", _I), 2, "commands the model"),
-    (re.compile(r"\b(when|whenever|if|after|each\s+time)\b[^.\n]{0,60}\b(tool|function)\s+is\s+"
-                r"(used|called|invoked|run)", _I), 2, "hooks another tool's use"),
-    (re.compile(r"\b(otherwise|or\s+else)\b[^.\n]{0,30}\b(will\s+not|won't|will\s+fail|fails|"
-                r"cannot|can't)\s+(work|run|function)", _I), 2, "threat to make the model comply"),
+                r"execute|copy)\b", _I), 2, "commands the model", False),
     (re.compile(r"\b(this\s+is|it\s+is)\s+(very\s+|extremely\s+)?(important|required|mandatory|"
-                r"critical|essential)\b", _I), 1, "urgency"),
+                r"critical|essential)\b", _I), 1, "urgency", False),
     (re.compile(r"\binclude\s+(the\s+|its\s+|their\s+)?(full\s+)?(output|contents?|results?|"
-                r"response)\s+(of|from|in)\b", _I), 1, "asks to relay data"),
-    (re.compile(r"\bsystem\s+prompt\b", _I), 1, "mentions the system prompt"),
-    (re.compile(r"\b(act|behave|respond)\s+as\s+(if\s+you\s+are\s+|an?\s+)?(admin|administrator|"
-                r"developer|system|root)\b", _I), 2, "role override"),
+                r"response)\s+(of|from|in)\b", _I), 1, "asks to relay data", False),
+    (re.compile(r"\bsystem\s+prompt\b", _I), 1, "mentions the system prompt", False),
 )  # fmt: skip
 
 THRESHOLD = 3
 HIGH_SCORE = 5
 
 
-def instruction_matches(view: MatchView) -> tuple[int, list[tuple[str, Evidence]]]:
-    """Total weight and (label, evidence) for every phrase match in the view."""
-    score = 0
-    matches: list[tuple[str, Evidence]] = []
-    for pattern, weight, label in PHRASES:
-        for _, evidence in view.finditer(pattern):
-            score += weight
-            matches.append((label, evidence))
-    return score, matches
+@dataclass(frozen=True, slots=True)
+class PhraseMatch:
+    label: str
+    evidence: Evidence
+    weight: int
+    attack: bool
+
+
+def instruction_matches(view: MatchView) -> list[PhraseMatch]:
+    return [
+        PhraseMatch(label, evidence, weight, attack)
+        for pattern, weight, label, attack in PHRASES
+        for _, evidence in view.finditer(pattern)
+    ]
+
+
+def steers_model(matches: list[PhraseMatch]) -> bool:
+    """Enough weight, and at least one attack signal or hidden text: the bar for a finding."""
+    hidden = any(carries_hidden_text(m.evidence.text) for m in matches)
+    return sum(m.weight for m in matches) >= THRESHOLD and (
+        hidden or any(m.attack for m in matches)
+    )
 
 
 @register
@@ -83,22 +107,25 @@ class InstructionPhrases(Rule):
         for tf in iter_text_fields(ctx.snapshot):
             if tf.kind in ("name", "uri", "property-name"):
                 continue
-            score, matches = instruction_matches(MatchView.of(tf.text))
-            if score < THRESHOLD:
+            matches = instruction_matches(MatchView.of(tf.text))
+            if not steers_model(matches):
                 continue
-            hidden = any(carries_hidden_text(ev.text) for _, ev in matches)
-            severity = Severity.HIGH if score >= HIGH_SCORE or hidden else Severity.MEDIUM
-            labels = sorted({label for label, _ in matches})
-            rationale = f"Instruction-like phrases (score {score}): {', '.join(labels)}."
+            score = sum(m.weight for m in matches)
+            hidden = any(carries_hidden_text(m.evidence.text) for m in matches)
+            attack_score = sum(m.weight for m in matches if m.attack)
+            high = attack_score >= HIGH_SCORE or hidden
+            signals = sorted({m.label for m in matches if m.attack})
+            rationale = f"Instructions steering the model (score {score})"
+            rationale += f": {', '.join(signals)}." if signals else "."
             if hidden:
                 rationale += " Some of them are hidden in invisible characters."
             findings.append(
                 self.finding(
                     location=tf.location,
-                    evidence=[ev for _, ev in matches],
+                    evidence=[m.evidence for m in matches],
                     rationale=rationale,
-                    severity=severity,
-                    confidence=Confidence.HIGH if score >= HIGH_SCORE else Confidence.MEDIUM,
+                    severity=Severity.HIGH if high else Severity.MEDIUM,
+                    confidence=Confidence.HIGH if high else Confidence.MEDIUM,
                 )
             )
         return findings

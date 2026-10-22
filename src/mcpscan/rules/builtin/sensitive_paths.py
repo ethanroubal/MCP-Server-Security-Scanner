@@ -1,7 +1,10 @@
-"""MCP-TP-005: references to credentials, keys and other sensitive files.
+"""MCP-TP-005: getting the model to read or send credentials and other sensitive files.
 
-A calculator or weather tool has no reason to mention `~/.ssh/id_rsa`, `.env` or the client's own
-MCP config. Poisoned descriptions name these files so the model reads them and passes them on.
+A calculator or weather tool has no reason to tell the model to read `~/.ssh/id_rsa`, `.env` or the
+client's MCP config. But mentioning them is common in legitimate tools: calibration found popular
+servers that search for `.env` files, warn against committing secrets, or store keys in the
+keychain. So a reference alone isn't reported. It is when it's hidden, when the same text steers
+the model (see MCP-TP-004), or when the same sentence asks to read, send or upload it.
 """
 
 from __future__ import annotations
@@ -12,6 +15,7 @@ from mcpscan.core.matching import MatchView, carries_hidden_text
 from mcpscan.core.models import Category, Evidence, Finding, Severity
 from mcpscan.core.text import iter_text_fields
 from mcpscan.rules.base import Rule, RuleContext
+from mcpscan.rules.builtin.instruction_phrases import instruction_matches, steers_model
 from mcpscan.rules.registry import register
 
 _I = re.IGNORECASE
@@ -36,16 +40,53 @@ _SENSITIVE: tuple[tuple[re.Pattern[str], str], ...] = (
 )  # fmt: skip
 
 
+_ACTS_ON = re.compile(
+    r"\b(read|cat|open|load|send|pass|include|upload|post|forward|share|copy|append|attach|paste|"
+    r"exfiltrate|leak|provide)\b",
+    re.IGNORECASE,
+)
+_SENTENCE_END = re.compile(r"[.!?](?=\s)|\n")
+
+
+def sensitive_hits(view: MatchView) -> list[tuple[str, Evidence]]:
+    return [(label, ev) for pattern, label in _SENSITIVE for _, ev in view.finditer(pattern)]
+
+
+def sentence_around(text: str, start: int, end: int) -> str:
+    before = [m.end() for m in _SENTENCE_END.finditer(text, 0, start)]
+    after = _SENTENCE_END.search(text, end)
+    return text[(before[-1] if before else 0) : (after.start() if after else len(text))]
+
+
+def acted_on(text: str, evidence: Evidence) -> bool:
+    """Does the sentence around this reference ask to read, send or upload something?"""
+    if evidence.start is None or evidence.end is None:
+        return False
+    return bool(
+        _ACTS_ON.search(MatchView.of(sentence_around(text, evidence.start, evidence.end)).text)
+    )
+
+
+def is_suspicious(text: str) -> bool:
+    """Shared bar for text that other rules found tucked away (in an HTML comment, after padding):
+    hidden characters, model steering (MCP-TP-004), or acting on a sensitive file."""
+    view = MatchView.of(text)
+    if carries_hidden_text(text) or steers_model(instruction_matches(view)):
+        return True
+    return any(acted_on(text, ev) for _, ev in sensitive_hits(view))
+
+
 @register
 class SensitivePaths(Rule):
     id = "MCP-TP-005"
-    title = "References to credentials or sensitive files"
+    title = "Instructions involving credentials or sensitive files"
     category = Category.TOOL_POISONING
     default_severity = Severity.HIGH
     applies_to = frozenset({"tool", "prompt", "resource"})
     remediation = (
-        "Check why this tool's metadata names sensitive files. Unless the tool genuinely manages "
-        "them (and you expected that), it is likely trying to get the model to read and leak them."
+        "Check why this tool's metadata asks the model to handle sensitive files. Unless the tool "
+        "genuinely manages them (and you expected that), it is likely trying to get the model to "
+        "read and leak them."
     )
 
     def run(self, ctx: RuleContext) -> list[Finding]:
@@ -54,23 +95,29 @@ class SensitivePaths(Rule):
             if tf.kind in ("name", "uri", "property-name"):
                 continue
             view = MatchView.of(tf.text)
-            hits: list[tuple[str, Evidence]] = [
-                (label, evidence)
-                for pattern, label in _SENSITIVE
-                for _, evidence in view.finditer(pattern)
-            ]
+            hits = sensitive_hits(view)
             if not hits:
                 continue
             hidden = any(carries_hidden_text(ev.text) for _, ev in hits)
-            rationale = f"The {tf.kind} references {', '.join(sorted({lb for lb, _ in hits}))}."
+            steering = steers_model(instruction_matches(view))
+            acted = [(lb, ev) for lb, ev in hits if acted_on(tf.text, ev)]
+            if not (hidden or steering or acted):
+                continue  # a mention, not an instruction
+            labels = ", ".join(sorted({lb for lb, _ in hits}))
             if hidden:
-                rationale += " The reference is hidden in invisible characters."
+                rationale, severity = f"Hidden text references {labels}.", Severity.CRITICAL
+            elif steering:
+                rationale = f"The {tf.kind} references {labels} and steers the model."
+                severity = Severity.HIGH
+            else:
+                rationale = f"The {tf.kind} asks to act on {labels}."
+                severity = Severity.MEDIUM
             findings.append(
                 self.finding(
                     location=tf.location,
-                    evidence=[ev for _, ev in hits],
+                    evidence=[ev for _, ev in (acted or hits)],
                     rationale=rationale,
-                    severity=Severity.CRITICAL if hidden else Severity.HIGH,
+                    severity=severity,
                 )
             )
         return findings

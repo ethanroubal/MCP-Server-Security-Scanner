@@ -43,7 +43,7 @@ SECRET_NAME = re.compile(
 _PLACEHOLDER = re.compile(
     r"^\$\{?[A-Za-z_][\w:.-]*\}?$|\$\{|\{(?:env|file):|^%[A-Za-z_]\w*%$|"
     r"^(op|vault|keychain|secret|aws-sm)://|"
-    r"^<.*>$|your[_-]|xxx|changeme|placeholder|example|redacted|\*{4}|^replace|^todo$|^none$|^null$",
+    r"^<.*>$|your[_-]|xxx|changeme|placeholder|example|dummy|redacted|\*{4}|^replace|^todo$|^none$|^null$",
     re.IGNORECASE,
 )
 _FLAG_WITH_VALUE = re.compile(r"^(--?[A-Za-z][\w-]*)=(.+)$")

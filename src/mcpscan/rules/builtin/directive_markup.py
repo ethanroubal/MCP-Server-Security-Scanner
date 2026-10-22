@@ -13,6 +13,7 @@ from mcpscan.core.matching import MatchView
 from mcpscan.core.models import Category, Evidence, Finding, Severity
 from mcpscan.core.text import iter_text_fields
 from mcpscan.rules.base import Rule, RuleContext
+from mcpscan.rules.builtin.sensitive_paths import is_suspicious
 from mcpscan.rules.registry import register
 
 _I = re.IGNORECASE
@@ -56,6 +57,9 @@ class DirectiveMarkup(Rule):
                 for pattern, severity, label in _MARKUP
                 for _, evidence in view.finditer(pattern)
             ]
+            # Calibration: HTML comments in real descriptions hold example markup. Report one
+            # only if what it hides is itself suspicious.
+            hits = [h for h in hits if h[1] != "HTML comment" or is_suspicious(h[2].text)]
             if not hits:
                 continue
             findings.append(

@@ -1,0 +1,4 @@
+{
+  "description": "Patterns from popular servers that the 2026-10 calibration run (calibration/) flagged before the rules were retuned: usage guidance, .env warnings, keychain enums, example HTML comments, hash fields, generic comment/environment parameters, indented examples. Nothing should fire.",
+  "expected_rules": []
+}

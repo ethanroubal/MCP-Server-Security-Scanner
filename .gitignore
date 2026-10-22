@@ -9,3 +9,7 @@ build/
 .coverage
 htmlcov/
 .DS_Store
+
+# calibration: registry cache and run output (review before committing results)
+calibration/.cache/
+calibration/results/

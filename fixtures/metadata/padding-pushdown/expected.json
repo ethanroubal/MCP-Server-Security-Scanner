@@ -1,6 +1,7 @@
 {
   "description": "Spaces push the second half of the description out of the approval dialog.",
   "expected_rules": [
+    "MCP-TP-004",
     "MCP-TP-008"
   ]
 }

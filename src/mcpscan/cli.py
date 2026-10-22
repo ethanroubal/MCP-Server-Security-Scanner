@@ -7,6 +7,7 @@ Exit codes: 0 = no findings at or above --fail-on, 1 = findings at or above --fa
 from __future__ import annotations
 
 import functools
+import re
 import sys
 from enum import StrEnum
 from pathlib import Path
@@ -92,6 +93,22 @@ RealCredentialsOpt = Annotated[
 ]
 TimeoutOpt = Annotated[float, typer.Option(help="Seconds to wait for each server to answer.")]
 JobsOpt = Annotated[int, typer.Option(min=1, help="Servers to connect to at the same time.")]
+AllowNetworkOpt = Annotated[
+    bool,
+    typer.Option(
+        "--allow-network",
+        help="Let sandboxed servers use the network while running (some fetch data at startup). "
+        "They still get dummy credentials unless --real-credentials is given.",
+    ),
+]
+AllowScriptsOpt = Annotated[
+    bool,
+    typer.Option(
+        "--allow-install-scripts",
+        help="Run npm install scripts and build PyPI source packages in the sandbox's download "
+        "step. Off by default, since that runs the package's code with network access.",
+    ),
+]
 HeaderOpt = Annotated[
     list[str] | None,
     typer.Option(
@@ -159,6 +176,8 @@ def _targets(
     jobs: int = 4,
     header: list[str] | None = None,
     oauth: bool = False,
+    allow_network: bool = False,
+    allow_install_scripts: bool = False,
 ) -> tuple[Targets, list[str]]:
     """Resolve the target and, with --connect, list every server. Returns connection warnings."""
     try:
@@ -181,9 +200,14 @@ def _targets(
         _warn("--sandbox none: stdio servers run directly on this machine, with your user's access")
     if real_credentials:
         _warn("--real-credentials: servers get the real secrets from your config")
+    if allow_network:
+        _warn("--allow-network: sandboxed servers can reach the network while running")
+    if allow_install_scripts:
+        _warn("--allow-install-scripts: package install code runs during download (sandboxed)")
     options = ConnectOptions(
         sandbox=sandbox.value, real_credentials=real_credentials, timeout=timeout, jobs=jobs,
         extra_headers=headers or None, oauth_open=open_in_browser if oauth else None,
+        allow_network=allow_network, allow_install_scripts=allow_install_scripts,
     )  # fmt: skip
     err.print(Text(f"Connecting to {len(targets.snapshots)} server(s)...", style="dim"))
     run = functools.partial(connect_all, targets.snapshots, options, _progress)
@@ -238,6 +262,14 @@ def _finish(result: ScanResult, *, strict: bool, failed: bool) -> NoReturn:
     raise typer.Exit(EXIT_FINDINGS if failed else EXIT_OK)
 
 
+def _save_snapshots(snapshots: list[ServerSnapshot], directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    for snapshot in snapshots:
+        name = re.sub(r"[^A-Za-z0-9._-]+", "_", snapshot.id).strip("_")[:120] or "server"
+        path = directory / f"{name}.json"
+        path.write_text(snapshot.model_dump_json(indent=2) + "\n", encoding="utf-8")
+
+
 def _load_lock(path: Path) -> Lockfile:
     try:
         return Lockfile.load(path)
@@ -285,6 +317,8 @@ def scan(
     jobs: JobsOpt = 4,
     header: HeaderOpt = None,
     oauth: OAuthOpt = False,
+    allow_network: AllowNetworkOpt = False,
+    allow_install_scripts: AllowScriptsOpt = False,
     fmt: FormatOpt = OutputFormat.TTY,
     output: OutputOpt = None,
     fail_on: Annotated[
@@ -302,12 +336,20 @@ def scan(
         typer.Option(help=f"Lockfile to check for changes. Default: ./{LOCKFILE_NAME} if present."),
     ] = None,
     use_lock: Annotated[bool, typer.Option("--lock/--no-lock", help="Use a lockfile.")] = True,
+    save_snapshots: Annotated[
+        Path | None,
+        typer.Option(
+            help="Write each server's snapshot (what it served; secrets masked) to this directory, "
+            "so it can be rescanned offline later.",
+        ),
+    ] = None,
     plugins: PluginsOpt = True,
 ) -> None:
     """Scan MCP servers for security issues."""
     targets, warnings = _targets(
         target, connect=connect, sandbox=sandbox, real_credentials=real_credentials,
-        timeout=timeout, jobs=jobs, header=header, oauth=oauth,
+        timeout=timeout, jobs=jobs, header=header, oauth=oauth, allow_network=allow_network,
+        allow_install_scripts=allow_install_scripts,
     )  # fmt: skip
     if fmt is OutputFormat.TTY and not output:
         _describe_sources(targets, connected=connect)
@@ -319,6 +361,8 @@ def scan(
             lock = _load_lock(path)
 
     policy = _load_policy(policy_file)
+    if save_snapshots:
+        _save_snapshots(targets.snapshots, save_snapshots)
     rules = load_rules(plugins=plugins)
     result = run_scan(targets.snapshots, rules, lock=lock).model_copy(update={"warnings": warnings})
     result = policy.apply(result)
@@ -340,6 +384,8 @@ def lock(
     jobs: JobsOpt = 4,
     header: HeaderOpt = None,
     oauth: OAuthOpt = False,
+    allow_network: AllowNetworkOpt = False,
+    allow_install_scripts: AllowScriptsOpt = False,
     output: Annotated[Path, typer.Option("--output", "-o", help="Lockfile to write.")] = Path(
         LOCKFILE_NAME
     ),
@@ -347,7 +393,8 @@ def lock(
     """Pin the current launch configs and tool definitions to a lockfile."""
     targets, _ = _targets(
         target, connect=connect, sandbox=sandbox, real_credentials=real_credentials,
-        timeout=timeout, jobs=jobs, header=header, oauth=oauth,
+        timeout=timeout, jobs=jobs, header=header, oauth=oauth, allow_network=allow_network,
+        allow_install_scripts=allow_install_scripts,
     )  # fmt: skip
     if not targets.snapshots:
         _fail("no MCP servers found to lock")
@@ -375,6 +422,8 @@ def verify(
     jobs: JobsOpt = 4,
     header: HeaderOpt = None,
     oauth: OAuthOpt = False,
+    allow_network: AllowNetworkOpt = False,
+    allow_install_scripts: AllowScriptsOpt = False,
     lockfile: Annotated[Path, typer.Option(help="Lockfile to verify against.")] = Path(
         LOCKFILE_NAME
     ),
@@ -389,7 +438,8 @@ def verify(
     locked = _load_lock(lockfile)
     targets, warnings = _targets(
         target, connect=connect, sandbox=sandbox, real_credentials=real_credentials,
-        timeout=timeout, jobs=jobs, header=header, oauth=oauth,
+        timeout=timeout, jobs=jobs, header=header, oauth=oauth, allow_network=allow_network,
+        allow_install_scripts=allow_install_scripts,
     )  # fmt: skip
     policy = _load_policy(policy_file)
     rules = [r for r in load_rules(plugins=False) if r.id == RUG_PULL_RULE]
@@ -421,11 +471,14 @@ def inspect_cmd(
     jobs: JobsOpt = 4,
     header: HeaderOpt = None,
     oauth: OAuthOpt = False,
+    allow_network: AllowNetworkOpt = False,
+    allow_install_scripts: AllowScriptsOpt = False,
 ) -> None:
     """Show every piece of text the model will read, with hidden characters revealed."""
     targets, _ = _targets(
         target, connect=connect, sandbox=sandbox, real_credentials=real_credentials,
-        timeout=timeout, jobs=jobs, header=header, oauth=oauth,
+        timeout=timeout, jobs=jobs, header=header, oauth=oauth, allow_network=allow_network,
+        allow_install_scripts=allow_install_scripts,
     )  # fmt: skip
     for snapshot in targets.snapshots:
         out.rule(Text(reveal(f"{snapshot.name}  ({snapshot.origin.kind}: {snapshot.origin.ref})")))

@@ -173,3 +173,76 @@ def test_npm_fetch_uses_the_shared_cache(monkeypatch: pytest.MonkeyPatch) -> Non
     _, fake = _prepare(monkeypatch, "npx", "-y", "pkg")
     install = next(c for c in fake.calls if c[0] == "run")
     assert f"{sb.NPM_CACHE_VOLUME}:/cache" in install
+
+
+class Scripted(FakeDocker):
+    """Fails `docker <verb>` calls whose arguments contain `fail_on`, once each."""
+
+    def __init__(self, fail_on: dict[str, str], output: str = "") -> None:
+        super().__init__(output)
+        self.fail_on = dict(fail_on)
+
+    async def __call__(self, *args: str, timeout: float) -> str:
+        self.calls.append(args)
+        for needle, error in list(self.fail_on.items()):
+            if needle in args:
+                del self.fail_on[needle]
+                raise sb.SandboxError(error)
+        return self.fetch_output if args[0] in ("run", "image") else ""
+
+
+def test_python_version_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    wrapped = "Because the current Python version (3.12.12) does not satisfy\n      Python>=3.13"
+    fake = Scripted({sb.UV_IMAGE: f"docker run failed: {wrapped}"},
+                    "MCPSCAN_VERSION=8.7.0\nMCPSCAN_SCRIPTS=ha-mcp\n")  # fmt: skip
+    prepared, _ = _prepare(monkeypatch, "uvx", "ha-mcp==8.7.0", fake=fake)
+    assert sb.UV_IMAGE_NEWER in (prepared.command or [])  # runs on the image that installed it
+
+
+def test_arm_fallback_pulls_amd64(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = Scripted({"pull": "docker pull failed: no matching manifest for linux/arm64/v8"})
+    prepared, _ = _prepare(monkeypatch, "docker", "run", "-i", "acme/mcp:1", fake=fake)
+    assert ("pull", "--platform", "linux/amd64", "acme/mcp:1") in fake.calls
+    assert _has(prepared.command or [], "--platform", "linux/amd64")
+
+
+def test_pypi_executable_comes_from_console_scripts(monkeypatch: pytest.MonkeyPatch) -> None:
+    out = "MCPSCAN_VERSION=0.51.5\nMCPSCAN_SCRIPTS=ouroboros,ouroboros-mcp\n"
+    prepared, _ = _prepare(monkeypatch, "uvx", "ouroboros-ai==0.51.5", "mcp", "serve",
+                           fake=FakeDocker(out))  # fmt: skip
+    assert _has(prepared.command or [], "--entrypoint", "/work/venv/bin/ouroboros-mcp")
+
+
+def test_pick_script() -> None:
+    assert sb.pick_script("tool", ["tool", "other"]) == "tool"
+    assert sb.pick_script("pkg", ["only-one"]) == "only-one"
+    assert sb.pick_script("pkg", ["cli", "pkg-mcp"]) == "pkg-mcp"
+    assert sb.pick_script("pkg", []) == "pkg"
+    with pytest.raises(sb.SandboxError, match="isn't one of"):
+        sb.pick_script("pkg", ["a", "b"])
+
+
+def test_package_servers_get_a_writable_workdir(monkeypatch: pytest.MonkeyPatch) -> None:
+    prepared, _ = _prepare(monkeypatch, "npx", "-y", "pkg")
+    command = prepared.command or []
+    assert _has(command, "--workdir", "/tmp") and "--read-only" in command
+    assert "TMPDIR=/tmp" in command
+
+
+def test_opt_ins(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = FakeDocker()
+    monkeypatch.setattr(sb, "_docker", fake)
+    launch = Launch(transport="stdio", command="npx", args=["-y", "pkg"])
+    prepared = anyio.run(lambda: sb.prepare(
+        launch, sandbox="docker", real_credentials=False, errlog=io.StringIO(), environ={},
+        allow_network=True, allow_install_scripts=True))  # fmt: skip
+    install = " ".join(next(c for c in fake.calls if c[0] == "run"))
+    assert "MCPSCAN_IGNORE_SCRIPTS= " in install + " "  # scripts allowed: flag left empty
+    assert "--network" not in (prepared.command or [])
+
+
+def test_uvx_with_requirements_are_installed(monkeypatch: pytest.MonkeyPatch) -> None:
+    _, fake = _prepare(monkeypatch, "uvx", "--with", "edgartools[ai]==5.62.0", "edgartools==5.62.0",
+                       "mcp")  # fmt: skip
+    install = next(c for c in fake.calls if c[0] == "run")
+    assert install[-3:] == ("edgartools==5.62.0", "edgartools", "edgartools[ai]==5.62.0")

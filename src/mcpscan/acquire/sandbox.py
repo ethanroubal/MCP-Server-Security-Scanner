@@ -51,22 +51,32 @@ NPM_CACHE_VOLUME = "mcpscan-npm-cache"
 UV_CACHE_VOLUME = "mcpscan-uv-cache"
 
 # Applied to every sandboxed server container.
+UV_IMAGE_NEWER = os.environ.get(
+    "MCPSCAN_UV_IMAGE_NEWER", "ghcr.io/astral-sh/uv:python3.13-bookworm-slim"
+)  # for packages whose requires-python excludes UV_IMAGE's Python
+
+# Applied to every sandboxed server container.
 RUN_RESTRICTIONS = (
     "--rm", "-i",
-    "--network", "none",
-    "--read-only", "--tmpfs", "/tmp:rw,exec,size=256m",
     "--cap-drop", "ALL",
     "--security-opt", "no-new-privileges",
     "--pids-limit", "256", "--memory", "1g", "--cpus", "1",
-    "-e", "HOME=/tmp",
+    "--tmpfs", "/tmp:rw,exec,size=256m",
+    "-e", "HOME=/tmp", "-e", "TMPDIR=/tmp",
 )  # fmt: skip
+NO_NETWORK = ("--network", "none")  # dropped only with --allow-network
+# npm/PyPI servers run entirely from the read-only package volume, so the root can be read-only
+# too; /tmp is the working directory for servers that write next to themselves. Docker-image
+# servers keep a writable root (discarded by --rm): many write inside their own app directory.
+PACKAGE_FS = ("--read-only", "--workdir", "/tmp")
 FETCH_RESTRICTIONS = ("--rm", "--cap-drop", "ALL", "--security-opt", "no-new-privileges")
 NON_ROOT = ("--user", "1000:1000")
 
-# Runs in the fetch container: install without scripts, then print the package's bin path.
+# Runs in the fetch container: install (without scripts unless allowed), then print the
+# package's bin path and version.
 _NPM_FETCH = (
-    'npm install --prefix /work --ignore-scripts --no-audit --no-fund --loglevel=error "$1" >&2 '
-    '&& node -e "$MCPSCAN_BIN_JS" "$2" "$3"'
+    "npm install --prefix /work $MCPSCAN_IGNORE_SCRIPTS --no-audit --no-fund --loglevel=error "
+    '"$1" >&2 && node -e "$MCPSCAN_BIN_JS" "$2" "$3"'
 )
 _NPM_BIN_JS = (
     "const [name, want] = process.argv.slice(1);"
@@ -77,13 +87,17 @@ _NPM_BIN_JS = (
     "process.stdout.write(`MCPSCAN_BIN=${bin || pkg.main || 'index.js'}\\n`);"
     "process.stdout.write(`MCPSCAN_VERSION=${pkg.version}\\n`);"
 )
+# Arguments: requirement, distribution name, then any `uvx --with` requirements.
 _PYPI_FETCH = (
-    "uv venv -q /work/venv && "
-    'uv pip install -q --python /work/venv/bin/python --only-binary :all: "$1" && '
-    '/work/venv/bin/python -c "$MCPSCAN_VERSION_PY" "$2"'
+    'req="$1"; name="$2"; shift 2; rm -rf /work/venv && uv venv -q /work/venv && '
+    'uv pip install -q --python /work/venv/bin/python $MCPSCAN_BINARY_ONLY "$req" "$@" && '
+    '/work/venv/bin/python -c "$MCPSCAN_VERSION_PY" "$name"'
 )
 _PYPI_VERSION_PY = (
-    "import sys, importlib.metadata as m; print('MCPSCAN_VERSION=' + m.version(sys.argv[1]))"
+    "import sys, importlib.metadata as m; d = m.distribution(sys.argv[1]); "
+    "print('MCPSCAN_VERSION=' + d.version); "
+    "print('MCPSCAN_SCRIPTS=' + ','.join(sorted("
+    "e.name for e in d.entry_points if e.group == 'console_scripts')))"
 )
 # ${VAR} / ${env:VAR} (most clients), {env:VAR} (opencode), $VAR; anything else in ${...} is
 # client-only (VS Code ${input:...}, Continue ${{ secrets.X }}) and can't be resolved here.
@@ -223,7 +237,33 @@ def _repo_digest(inspect_json: str, name: str) -> str | None:
     return None
 
 
-async def _prepare_docker(launch: Launch, env: dict[str, str], errlog: TextIO) -> Prepared:
+def pick_script(wanted: str, scripts: list[str]) -> str:
+    """The console script to run: the requested one, else the package's only one, else its only
+    MCP-named one. (`uvx pkg` asks for an executable named like the package; some packages name
+    theirs differently.)"""
+    if not scripts or wanted in scripts:
+        return wanted
+    if len(scripts) == 1:
+        return scripts[0]
+    mcp = [s for s in scripts if "mcp" in s.lower()]
+    if len(mcp) == 1:
+        return mcp[0]
+    raise SandboxError(f"{wanted!r} isn't one of the package's executables: {', '.join(scripts)}")
+
+
+def _python_too_old(error: SandboxError) -> bool:
+    # uv wraps long messages, so the words can be split across lines
+    return bool(re.search(r"does\s+not\s+satisfy\s+Python|requires-python", str(error), re.I))
+
+
+async def _prepare_docker(
+    launch: Launch,
+    env: dict[str, str],
+    errlog: TextIO,
+    *,
+    allow_network: bool = False,
+    allow_install_scripts: bool = False,
+) -> Prepared:
     ref = package_ref(launch)
     if ref is None:
         argv = " ".join(command_line(launch))
@@ -246,11 +286,21 @@ async def _prepare_docker(launch: Launch, env: dict[str, str], errlog: TextIO) -
                 with contextlib.suppress(SandboxError):
                     await _docker(*args, timeout=30)
 
-    run = ["run", *RUN_RESTRICTIONS, "--name", container, *_env_flags(env)]
+    network = [] if allow_network else list(NO_NETWORK)
+    run = ["run", *RUN_RESTRICTIONS, *network, "--name", container, *_env_flags(env)]
+    where = "network allowed" if allow_network else "no network"
     try:
         if ref.registry == "docker":
             image = argv[ref.argv_index]
-            await _docker("pull", image, timeout=PULL_TIMEOUT)
+            platform: list[str] = []
+            try:
+                await _docker("pull", image, timeout=PULL_TIMEOUT)
+            except SandboxError as exc:
+                if "no matching manifest" not in str(exc):
+                    raise
+                # No build for this machine's architecture: run the amd64 one under emulation.
+                platform = ["--platform", "linux/amd64"]
+                await _docker("pull", *platform, image, timeout=PULL_TIMEOUT)
             digests = await _docker("image", "inspect", "--format", "{{json .RepoDigests}}",
                                     image, timeout=30)  # fmt: skip
             resolved = PackageMeta(registry="docker", name=ref.name,
@@ -261,43 +311,54 @@ async def _prepare_docker(launch: Launch, env: dict[str, str], errlog: TextIO) -
                 for flag, value in (config_run.options if config_run else [])
                 if flag in ("-e", "--env") and value
             }
-            run = [*run, *_env_flags(dict.fromkeys(forwarded - env.keys(), DUMMY_VALUE))]
-            command = [*run, argv[ref.argv_index], *server_args]
-            label = f"docker sandbox (image {ref.display}, no network)"
+            run = [*run, *platform, *_env_flags(dict.fromkeys(forwarded - env.keys(), DUMMY_VALUE))]
+            command = [*run, image, *server_args]
+            label = f"docker sandbox (image {ref.display}, {where})"
         else:
             await _docker("volume", "create", volume, timeout=30)
             fetch = ["run", *FETCH_RESTRICTIONS, "-v", f"{volume}:/work", "--entrypoint", "sh"]
-            mount = ["-v", f"{volume}:/work:ro", *NON_ROOT]
+            mount = [*PACKAGE_FS, "-v", f"{volume}:/work:ro", *NON_ROOT]
             if ref.registry == "npm":
                 spec = f"{ref.name}@{ref.spec}" if ref.spec else ref.name
-                bin_js = f"MCPSCAN_BIN_JS={_NPM_BIN_JS}"
+                scripts = "" if allow_install_scripts else "--ignore-scripts"
                 npm_args = ["-v", f"{NPM_CACHE_VOLUME}:/cache", "-e", "npm_config_cache=/cache/npm",
-                            "-e", bin_js, NODE_IMAGE, "-c"]  # fmt: skip
+                            "-e", f"MCPSCAN_IGNORE_SCRIPTS={scripts}",
+                            "-e", f"MCPSCAN_BIN_JS={_NPM_BIN_JS}", NODE_IMAGE, "-c"]  # fmt: skip
                 script_args = [_NPM_FETCH, "sh", spec, ref.name, ref.entry or ""]
                 output = await _docker(*fetch, *npm_args, *script_args, timeout=FETCH_TIMEOUT)
-                found = [ln[len("MCPSCAN_BIN=") :] for ln in output.splitlines()
-                         if ln.startswith("MCPSCAN_BIN=")]  # fmt: skip
+                found = _marker(output, "MCPSCAN_BIN=")
                 if not found:
                     raise SandboxError(f"installed {spec} but couldn't find its executable")
-                entry = npm_bin_path(ref.name, found[-1])
+                entry = npm_bin_path(ref.name, found)
                 resolved = PackageMeta(registry="npm", name=ref.name,
                                        version=_marker(output, "MCPSCAN_VERSION="))  # fmt: skip
                 command = [*run, *mount, "--entrypoint", "node", NODE_IMAGE, entry, *server_args]
             else:
-                requirement = pypi_requirement(ref)
-                version_py = f"MCPSCAN_VERSION_PY={_PYPI_VERSION_PY}"
-                uv_args = ["-v", f"{UV_CACHE_VOLUME}:/cache", "-e", "UV_CACHE_DIR=/cache/uv",
-                           "-e", "UV_LINK_MODE=copy", "-e", version_py, UV_IMAGE, "-c"]  # fmt: skip
-                output = await _docker(*fetch, *uv_args, _PYPI_FETCH, "sh", requirement, ref.name,
-                                       timeout=FETCH_TIMEOUT)  # fmt: skip
+                binary_only = "" if allow_install_scripts else "--only-binary :all:"
+                uv_env = ["-v", f"{UV_CACHE_VOLUME}:/cache", "-e", "UV_CACHE_DIR=/cache/uv",
+                          "-e", "UV_LINK_MODE=copy", "-e", f"MCPSCAN_BINARY_ONLY={binary_only}",
+                          "-e", f"MCPSCAN_VERSION_PY={_PYPI_VERSION_PY}"]  # fmt: skip
+                install = [_PYPI_FETCH, "sh", pypi_requirement(ref), ref.name,
+                           *ref.with_requirements]  # fmt: skip
+                python_image = UV_IMAGE
+                try:
+                    output = await _docker(*fetch, *uv_env, python_image, "-c", *install,
+                                           timeout=FETCH_TIMEOUT)  # fmt: skip
+                except SandboxError as exc:
+                    if not _python_too_old(exc):
+                        raise
+                    python_image = UV_IMAGE_NEWER
+                    output = await _docker(*fetch, *uv_env, python_image, "-c", *install,
+                                           timeout=FETCH_TIMEOUT)  # fmt: skip
                 resolved = PackageMeta(registry="pypi", name=ref.name,
                                        version=_marker(output, "MCPSCAN_VERSION="))  # fmt: skip
-                entry_name = ref.entry or ref.name
+                scripts_found = (_marker(output, "MCPSCAN_SCRIPTS=") or "").split(",")
+                entry_name = pick_script(ref.entry or ref.name, [s for s in scripts_found if s])
                 if not _SAFE_NAME.match(entry_name):
                     raise SandboxError(f"unexpected executable name {entry_name!r}")
                 entry = f"/work/venv/bin/{entry_name}"
-                command = [*run, *mount, "--entrypoint", entry, UV_IMAGE, *server_args]
-            label = f"docker sandbox ({ref.registry} {ref.display}, no network)"
+                command = [*run, *mount, "--entrypoint", entry, python_image, *server_args]
+            label = f"docker sandbox ({ref.registry} {ref.display}, {where})"
     except BaseException:
         await cleanup()
         raise
@@ -324,6 +385,8 @@ async def prepare(
     environ: Mapping[str, str] | None = None,
     extra_headers: Mapping[str, str] | None = None,
     oauth_open: OpenUrl | None = None,
+    allow_network: bool = False,
+    allow_install_scripts: bool = False,
 ) -> Prepared:
     """`extra_headers`: sent to a remote server as given (--header). `oauth_open`: sign in with
     OAuth, calling it with the authorization URL (--oauth)."""
@@ -368,7 +431,8 @@ async def prepare(
         raise SandboxError("stdio server has no command")
     env = server_env(launch, real_credentials=real_credentials, environ=environ)
     if sandbox == "docker":
-        return await _prepare_docker(launch, env, errlog)
+        return await _prepare_docker(launch, env, errlog, allow_network=allow_network,
+                                     allow_install_scripts=allow_install_scripts)  # fmt: skip
     params = StdioServerParameters(
         command=launch.command, args=launch.args, env={**get_default_environment(), **env}
     )

@@ -69,12 +69,22 @@ no tool is ever called. Tools are listed twice to catch servers that change them
   `docker volume rm` to start fresh.
 - **Locking** with `--connect` also pins the package version or image digest that actually ran,
   so `verify` catches an unpinned `npx -y pkg` quietly moving to a new release.
+- **Opt-ins** for servers that won't start otherwise: `--allow-network` (network while running)
+  and `--allow-install-scripts` (npm install scripts and PyPI source builds during download).
+  Both are off by default.
+- **`--save-snapshots DIR`** keeps what each server served, so it can be rescanned offline.
 - **Disabled servers** (disabled in their client config) aren't started.
 - **Older servers** that crash on the 2026 `server/discover` probe are retried in a fresh
   process with the classic `initialize` handshake.
 - **Versions can differ from your machine's**: npm picks the newest release whose `engines`
   match the sandbox's Node 22 (`MCPSCAN_NODE_IMAGE` overrides the image), so an unpinned package
   may resolve differently than on a machine with a newer Node.
+
+## Calibration
+
+The tool-metadata rules are tuned against the 100 most-downloaded servers in the official MCP
+registry: zero false positives on the 59 the sandbox could list, with the attack fixtures still
+detected. Method, scripts and results: [calibration/README.md](calibration/README.md).
 
 ## Development
 

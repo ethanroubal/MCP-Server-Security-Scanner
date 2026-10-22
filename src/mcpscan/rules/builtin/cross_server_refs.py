@@ -13,7 +13,7 @@ from mcpscan.core.matching import MatchView
 from mcpscan.core.models import Category, Confidence, Evidence, Finding, Severity
 from mcpscan.core.text import iter_text_fields
 from mcpscan.rules.base import Rule, RuleContext
-from mcpscan.rules.builtin.instruction_phrases import THRESHOLD, instruction_matches
+from mcpscan.rules.builtin.instruction_phrases import instruction_matches, steers_model
 from mcpscan.rules.registry import register
 
 
@@ -63,8 +63,7 @@ class CrossServerReferences(Rule):
             ]
             if not hits:
                 continue
-            score, _ = instruction_matches(view)
-            directive = score >= THRESHOLD
+            directive = steers_model(instruction_matches(view))
             targets = sorted({f"{name} (server {foreign[name]!r})" for name, _ in hits})
             rationale = f"The {tf.kind} mentions {', '.join(targets)}."
             if directive:

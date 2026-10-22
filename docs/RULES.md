@@ -1,7 +1,8 @@
 # Rule catalog
 
 Ids are permanent: never renumber or reuse one. Status: ✅ implemented, ⬜ planned.
-Sections refer to docs/ARCHITECTURE.md §5.
+Sections refer to docs/ARCHITECTURE.md §5. Tool-metadata rules were tuned against the 100
+most-downloaded registry servers; see calibration/README.md.
 
 ## MCP-TP — Tool poisoning (§5.1)
 | Id | Title | Status |
@@ -9,11 +10,11 @@ Sections refer to docs/ARCHITECTURE.md §5.
 | MCP-TP-001 | Invisible or smuggled Unicode characters | ✅ |
 | MCP-TP-002 | Terminal escape sequences | ✅ |
 | MCP-TP-003 | Directive markup (`<IMPORTANT>`, `<system>`, fake role markers) | ✅ |
-| MCP-TP-004 | Instruction phrases aimed at the model | ✅ |
-| MCP-TP-005 | Sensitive path or secret references | ✅ |
+| MCP-TP-004 | Instructions steering the model against the user | ✅ |
+| MCP-TP-005 | Instructions involving credentials or sensitive files | ✅ |
 | MCP-TP-006 | Encoded payloads (base64 / hex) | ✅ |
 | MCP-TP-007 | Exfiltration via rendered links or images | ✅ |
-| MCP-TP-008 | Padding / description length anomaly | ✅ |
+| MCP-TP-008 | Padding that pushes suspicious text out of view | ✅ |
 | MCP-TP-009 | Exfiltration-shaped parameters | ✅ |
 
 ## MCP-XS — Cross-server (§5.2)

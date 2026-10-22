@@ -68,3 +68,15 @@ def test_docker_options() -> None:
     assert run is not None
     assert run.options == [("--privileged", None), ("-v", "/:/host"), ("--net", "host")]
     assert run.image == "img"
+
+
+def test_uvx_with_requirements() -> None:
+    ref = package_ref(
+        _launch("uvx", "--with", "edgartools[ai]==5.62.0", "edgartools==5.62.0", "mcp")
+    )
+    assert ref is not None
+    assert (ref.name, ref.with_requirements, ref.rest_index) == (
+        "edgartools",
+        ("edgartools[ai]==5.62.0",),
+        4,
+    )

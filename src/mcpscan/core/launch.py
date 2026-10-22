@@ -65,6 +65,7 @@ class PackageRef:
     argv_index: int  # position of the package argument in command_line(launch)
     entry: str | None = None  # executable to run when named explicitly (uvx cmd, npx -p pkg cmd)
     rest_index: int = 0  # position in command_line(launch) where the server's own args start
+    with_requirements: tuple[str, ...] = ()  # uvx --with: extra requirements installed alongside
 
     @property
     def pinned(self) -> bool:
@@ -197,8 +198,13 @@ def _pypi(args: list[str], runner: str, offset: int, *, from_flag: str) -> Packa
     if not m or not command:
         return None
     spec = m.group("spec").strip() or None
+    extras = tuple(
+        value for i, arg in enumerate(args[: positional[0]])
+        for value in ([args[i + 1]] if arg in ("--with", "-w") and i + 1 < len(args)
+                      else [arg.split("=", 1)[1]] if arg.startswith("--with=") else [])
+    )  # fmt: skip
     return PackageRef("pypi", m.group("name"), spec, runner, idx + offset,
-                      command.group("name"), positional[0] + 1 + offset)  # fmt: skip
+                      command.group("name"), positional[0] + 1 + offset, extras)  # fmt: skip
 
 
 def _docker_ref(image: str, runner: str, argv_index: int) -> PackageRef:

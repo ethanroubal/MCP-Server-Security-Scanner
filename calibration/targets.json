@@ -1,0 +1,1669 @@
+[
+  {
+    "server": "io.github.microsoft/playwright-mcp",
+    "registry": "npm",
+    "package": "@playwright/mcp",
+    "version": "0.0.82",
+    "monthly_downloads": 27861597,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@0.0.82"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.firebase/firebase-mcp",
+    "registry": "npm",
+    "package": "firebase-tools",
+    "version": "14.27.0",
+    "monthly_downloads": 13473266,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "firebase-tools@14.27.0"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.ChromeDevTools/chrome-devtools-mcp",
+    "registry": "npm",
+    "package": "chrome-devtools-mcp",
+    "version": "1.11.0",
+    "monthly_downloads": 7942550,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@1.11.0"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.colorjs/color-space",
+    "registry": "npm",
+    "package": "color-space",
+    "version": "3.5.0",
+    "monthly_downloads": 3805863,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "color-space@3.5.0",
+        "mcp"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.snyk/mcp",
+    "registry": "npm",
+    "package": "snyk",
+    "version": "1.1304.2",
+    "monthly_downloads": 2729327,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "snyk@1.1304.2",
+        "mcp",
+        "-t",
+        "stdio"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.upstash/context7",
+    "registry": "npm",
+    "package": "@upstash/context7-mcp",
+    "version": "4.4.4",
+    "monthly_downloads": 2640895,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@4.4.4"
+      ],
+      "env": {
+        "CONTEXT7_API_KEY": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.team-telnyx/telnyx",
+    "registry": "npm",
+    "package": "telnyx",
+    "version": "6.29.3",
+    "monthly_downloads": 1547708,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "telnyx@6.29.3"
+      ],
+      "env": {
+        "TELNYX_API_KEY": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.callstack/agent-device",
+    "registry": "npm",
+    "package": "agent-device",
+    "version": "0.21.30",
+    "monthly_downloads": 1016875,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "agent-device@0.21.30",
+        "mcp"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.wonderwhy-er/desktop-commander",
+    "registry": "npm",
+    "package": "@wonderwhy-er/desktop-commander",
+    "version": "0.3.0",
+    "monthly_downloads": 922725,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@wonderwhy-er/desktop-commander@0.3.0"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.firecrawl/firecrawl-mcp-server",
+    "registry": "npm",
+    "package": "firecrawl-mcp",
+    "version": "3.33.4",
+    "monthly_downloads": 625831,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "firecrawl-mcp@3.33.4"
+      ],
+      "env": {
+        "FIRECRAWL_API_KEY": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.tester-army/e2e",
+    "registry": "npm",
+    "package": "e2e",
+    "version": "0.21.2",
+    "monthly_downloads": 574860,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "e2e@0.21.2",
+        "mcp"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "com.microsoft/azure",
+    "registry": "npm",
+    "package": "@azure/mcp",
+    "version": "3.0.0-beta.48",
+    "monthly_downloads": 558323,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@azure/mcp@3.0.0-beta.48",
+        "server",
+        "start"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.morluto/rea",
+    "registry": "npm",
+    "package": "rea-agents",
+    "version": "6.7.0",
+    "monthly_downloads": 549553,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "rea-agents@6.7.0",
+        "mcp"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.zereight/gitlab-mcp",
+    "registry": "npm",
+    "package": "@zereight/mcp-gitlab",
+    "version": "2.3.6",
+    "monthly_downloads": 526272,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@zereight/mcp-gitlab@2.3.6"
+      ],
+      "env": {
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "mcpscan-calibration-dummy",
+        "GITLAB_JOB_TOKEN": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.software-mansion/argent",
+    "registry": "npm",
+    "package": "@swmansion/argent",
+    "version": "0.19.0",
+    "monthly_downloads": 512512,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@swmansion/argent@0.19.0",
+        "mcp"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.mongodb-js/mongodb-mcp-server",
+    "registry": "npm",
+    "package": "mongodb-mcp-server",
+    "version": "2.1.0",
+    "monthly_downloads": 476836,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mongodb-mcp-server@2.1.0"
+      ],
+      "env": {
+        "MDB_MCP_API_CLIENT_SECRET": "mcpscan-calibration-dummy",
+        "MDB_MCP_VOYAGE_API_KEY": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.vercel/next-devtools-mcp",
+    "registry": "npm",
+    "package": "next-devtools-mcp",
+    "version": "0.3.6",
+    "monthly_downloads": 472323,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "next-devtools-mcp@0.3.6"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.getsentry/sentry-mcp",
+    "registry": "npm",
+    "package": "@sentry/mcp-server",
+    "version": "0.42.0",
+    "monthly_downloads": 462862,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@sentry/mcp-server@0.42.0"
+      ],
+      "env": {
+        "SENTRY_ACCESS_TOKEN": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.yamadashy/repomix",
+    "registry": "npm",
+    "package": "repomix",
+    "version": "1.18.1",
+    "monthly_downloads": 397507,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "repomix@1.18.1",
+        "--mcp"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.SAP/fiori-mcp-server",
+    "registry": "npm",
+    "package": "@sap-ux/fiori-mcp-server",
+    "version": "1.15.12",
+    "monthly_downloads": 370034,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@sap-ux/fiori-mcp-server@1.15.12"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.UI5/mcp-server",
+    "registry": "npm",
+    "package": "@ui5/mcp-server",
+    "version": "0.3.2",
+    "monthly_downloads": 362686,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@ui5/mcp-server@0.3.2"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "com.supabase/mcp",
+    "registry": "npm",
+    "package": "@supabase/mcp-server-supabase",
+    "version": "0.14.0",
+    "monthly_downloads": 352071,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@0.14.0"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.GLips/Figma-Context-MCP",
+    "registry": "npm",
+    "package": "figma-developer-mcp",
+    "version": "0.13.2",
+    "monthly_downloads": 336096,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "figma-developer-mcp@0.13.2",
+        "--stdio"
+      ],
+      "env": {
+        "FIGMA_API_KEY": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "com.xcodebuildmcp/XcodeBuildMCP",
+    "registry": "npm",
+    "package": "xcodebuildmcp",
+    "version": "2.7.0",
+    "monthly_downloads": 253777,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "xcodebuildmcp@2.7.0"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.nrwl/nx-console",
+    "registry": "npm",
+    "package": "nx-mcp",
+    "version": "0.6.12",
+    "monthly_downloads": 236569,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "nx-mcp@0.6.12"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.cap-js/mcp-server",
+    "registry": "npm",
+    "package": "@cap-js/mcp-server",
+    "version": "0.0.8",
+    "monthly_downloads": 211776,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@cap-js/mcp-server@0.0.8"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.Softeria/ms-365-mcp-server",
+    "registry": "npm",
+    "package": "@softeria/ms-365-mcp-server",
+    "version": "0.170.2",
+    "monthly_downloads": 208841,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@softeria/ms-365-mcp-server@0.170.2"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.mobile-next/mobile-mcp",
+    "registry": "npm",
+    "package": "@mobilenext/mobile-mcp",
+    "version": "1.0.12",
+    "monthly_downloads": 207341,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@mobilenext/mobile-mcp@1.0.12"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.bytebase/dbhub",
+    "registry": "npm",
+    "package": "@bytebase/dbhub",
+    "version": "1.5.0",
+    "monthly_downloads": 165521,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@bytebase/dbhub@1.5.0"
+      ],
+      "env": {
+        "DB_PASSWORD": "mcpscan-calibration-dummy",
+        "SSH_PASSWORD": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "dev.endform/mcp",
+    "registry": "npm",
+    "package": "endform",
+    "version": "0.81.5",
+    "monthly_downloads": 160498,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "endform@0.81.5",
+        "mcp"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.chrisryugj/kordoc",
+    "registry": "npm",
+    "package": "kordoc",
+    "version": "4.24.1",
+    "monthly_downloads": 141968,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "kordoc@4.24.1",
+        "mcp"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.hostinger/hostinger-api-mcp",
+    "registry": "npm",
+    "package": "@hostinger/mcp",
+    "version": "3.6.0",
+    "monthly_downloads": 136861,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@hostinger/mcp@3.6.0"
+      ],
+      "env": {
+        "HOSTINGER_API_TOKEN": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.artokun/comfyui-mcp",
+    "registry": "npm",
+    "package": "comfyui-mcp",
+    "version": "0.52.206",
+    "monthly_downloads": 117113,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "comfyui-mcp@0.52.206"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.chrisdoc/hevy-mcp",
+    "registry": "npm",
+    "package": "hevy-mcp",
+    "version": "3.2.1",
+    "monthly_downloads": 112484,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "hevy-mcp@3.2.1"
+      ],
+      "env": {
+        "HEVY_API_KEY": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.letoribo/mcp-graphql-enhanced",
+    "registry": "npm",
+    "package": "@letoribo/mcp-graphql-enhanced",
+    "version": "4.15.4",
+    "monthly_downloads": 107505,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@letoribo/mcp-graphql-enhanced@4.15.4"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "com.gitkraken/gk-cli",
+    "registry": "npm",
+    "package": "@gitkraken/gk",
+    "version": "3.1.77",
+    "monthly_downloads": 105640,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@gitkraken/gk@3.1.77",
+        "mcp"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "dev.svelte/mcp",
+    "registry": "npm",
+    "package": "@sveltejs/mcp",
+    "version": "0.1.27",
+    "monthly_downloads": 103402,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@sveltejs/mcp@0.1.27"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "email.palisade/palisade",
+    "registry": "npm",
+    "package": "@palisadeemail/mcp",
+    "version": "0.2.1",
+    "monthly_downloads": 96054,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@palisadeemail/mcp@0.2.1"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.TencentCloudBase/cloudbase-mcp",
+    "registry": "npm",
+    "package": "@cloudbase/cloudbase-mcp",
+    "version": "2.36.1",
+    "monthly_downloads": 93978,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@cloudbase/cloudbase-mcp@2.36.1"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.brave/brave-search-mcp-server",
+    "registry": "npm",
+    "package": "@brave/brave-search-mcp-server",
+    "version": "2.1.3",
+    "monthly_downloads": 93582,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@brave/brave-search-mcp-server@2.1.3"
+      ],
+      "env": {
+        "BRAVE_API_KEY": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.tavily-ai/tavily-mcp",
+    "registry": "npm",
+    "package": "tavily-mcp",
+    "version": "0.2.15",
+    "monthly_downloads": 89437,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "tavily-mcp@0.2.15"
+      ],
+      "env": {
+        "TAVILY_API_KEY": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.browserstack/mcp-server",
+    "registry": "npm",
+    "package": "@browserstack/mcp-server",
+    "version": "2.2.4",
+    "monthly_downloads": 88197,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@browserstack/mcp-server@2.2.4"
+      ],
+      "env": {
+        "BROWSERSTACK_USERNAME": "mcpscan-calibration-dummy",
+        "BROWSERSTACK_ACCESS_KEY": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "ai.perplexity/mcp-server",
+    "registry": "npm",
+    "package": "@perplexity-ai/mcp-server",
+    "version": "1.2.1",
+    "monthly_downloads": 83807,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@perplexity-ai/mcp-server@1.2.1"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.cyanheads/mcp-ts-core",
+    "registry": "npm",
+    "package": "@cyanheads/mcp-ts-core",
+    "version": "0.13.15",
+    "monthly_downloads": 76918,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@cyanheads/mcp-ts-core@0.13.15"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.dynatrace-oss/Dynatrace-mcp",
+    "registry": "npm",
+    "package": "@dynatrace-oss/dynatrace-mcp-server",
+    "version": "2.1.2",
+    "monthly_downloads": 72359,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@dynatrace-oss/dynatrace-mcp-server@2.1.2"
+      ],
+      "env": {
+        "DT_ENVIRONMENT": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "com.microsoft/powerbi-modeling-mcp",
+    "registry": "npm",
+    "package": "@microsoft/powerbi-modeling-mcp",
+    "version": "1.0.0",
+    "monthly_downloads": 65968,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@microsoft/powerbi-modeling-mcp@1.0.0",
+        "--start",
+        "mcpscan-calibration-dummy"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.ruvnet/claude-flow",
+    "registry": "npm",
+    "package": "claude-flow",
+    "version": "2.0.0-alpha.107",
+    "monthly_downloads": 64088,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "claude-flow@2.0.0-alpha.107"
+      ],
+      "env": {
+        "ANTHROPIC_API_KEY": "mcpscan-calibration-dummy",
+        "GITHUB_TOKEN": "mcpscan-calibration-dummy",
+        "FLOW_NEXUS_API_KEY": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.YawLabs/ctxlint",
+    "registry": "npm",
+    "package": "@yawlabs/ctxlint",
+    "version": "0.28.0",
+    "monthly_downloads": 54960,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@yawlabs/ctxlint@0.28.0"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.containers/kubernetes-mcp-server",
+    "registry": "npm",
+    "package": "kubernetes-mcp-server",
+    "version": "0.0.67",
+    "monthly_downloads": 51986,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "kubernetes-mcp-server@0.0.67"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.toggl/toggl-mcp",
+    "registry": "npm",
+    "package": "@togglhq/mcp",
+    "version": "1.13.29",
+    "monthly_downloads": 50216,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@togglhq/mcp@1.13.29"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.ruvnet/ruv-swarm",
+    "registry": "npm",
+    "package": "ruv-swarm",
+    "version": "1.0.19",
+    "monthly_downloads": 48270,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "ruv-swarm@1.0.19"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.IgniteUI/igniteui-theming",
+    "registry": "npm",
+    "package": "igniteui-theming",
+    "version": "29.1.1",
+    "monthly_downloads": 48224,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "igniteui-theming@29.1.1"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.discourse/mcp",
+    "registry": "npm",
+    "package": "@discourse/mcp",
+    "version": "0.3.1",
+    "monthly_downloads": 48172,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@discourse/mcp@0.3.1"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.brightdata/brightdata-mcp",
+    "registry": "npm",
+    "package": "@brightdata/mcp",
+    "version": "4.1.0",
+    "monthly_downloads": 46951,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@brightdata/mcp@4.1.0"
+      ],
+      "env": {
+        "API_TOKEN": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.nteract/semiotic",
+    "registry": "npm",
+    "package": "semiotic",
+    "version": "3.12.1",
+    "monthly_downloads": 45421,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "semiotic@3.12.1"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.ihor-sokoliuk/mcp-searxng",
+    "registry": "npm",
+    "package": "mcp-searxng",
+    "version": "2.7.0",
+    "monthly_downloads": 45070,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-searxng@2.7.0"
+      ],
+      "env": {
+        "SEARXNG_URL": "https://example.invalid",
+        "AUTH_PASSWORD": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.t8y2/dbx",
+    "registry": "npm",
+    "package": "@dbx-app/mcp-server",
+    "version": "0.1.3",
+    "monthly_downloads": 42229,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@dbx-app/mcp-server@0.1.3"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.asklokesh/loki-mode",
+    "registry": "npm",
+    "package": "loki-mode",
+    "version": "10.9.1",
+    "monthly_downloads": 41320,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "loki-mode@10.9.1",
+        "mcp"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.railwayapp/mcp-server",
+    "registry": "npm",
+    "package": "@railway/mcp-server",
+    "version": "0.1.11",
+    "monthly_downloads": 40296,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@railway/mcp-server@0.1.11"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.alisaitteke/photoshop-mcp",
+    "registry": "npm",
+    "package": "@alisaitteke/photoshop-mcp",
+    "version": "1.7.37",
+    "monthly_downloads": 40281,
+    "config": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@alisaitteke/photoshop-mcp@1.7.37"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "com.browser-use/browser-use",
+    "registry": "pypi",
+    "package": "browser-use",
+    "version": "0.13.11",
+    "monthly_downloads": 7827484,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "browser-use==0.13.11",
+        "--cli-mcp"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.seleniumbase/seleniumbase",
+    "registry": "pypi",
+    "package": "seleniumbase",
+    "version": "4.56.3",
+    "monthly_downloads": 1338837,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "seleniumbase==4.56.3"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "aws.api.us-east-1.ecs-mcp/server",
+    "registry": "pypi",
+    "package": "mcp-proxy-for-aws",
+    "version": "1.1.6",
+    "monthly_downloads": 1287925,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "mcp-proxy-for-aws==1.1.6",
+        "https://ecs-mcp.{region}.api.aws/mcp",
+        "--profile",
+        "default",
+        "--region",
+        "{region}"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.D4Vinci/Scrapling",
+    "registry": "pypi",
+    "package": "scrapling",
+    "version": "0.4.15",
+    "monthly_downloads": 901847,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "scrapling==0.4.15",
+        "mcp"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.dgunning/edgartools",
+    "registry": "pypi",
+    "package": "edgartools",
+    "version": "5.62.0",
+    "monthly_downloads": 857191,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "--with",
+        "edgartools[ai]==5.62.0",
+        "edgartools==5.62.0",
+        "mcp"
+      ],
+      "env": {
+        "EDGAR_IDENTITY": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.vndee/llm-sandbox",
+    "registry": "pypi",
+    "package": "llm-sandbox",
+    "version": "0.3.43",
+    "monthly_downloads": 373968,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "llm-sandbox[mcp-docker]"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.homeassistant-ai/ha-mcp",
+    "registry": "pypi",
+    "package": "ha-mcp",
+    "version": "8.7.0",
+    "monthly_downloads": 291060,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "ha-mcp==8.7.0"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.ClickHouse/mcp-clickhouse",
+    "registry": "pypi",
+    "package": "mcp-clickhouse",
+    "version": "0.7.0",
+    "monthly_downloads": 265325,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "mcp-clickhouse==0.7.0"
+      ],
+      "env": {
+        "CLICKHOUSE_HOST": "https://example.invalid",
+        "CLICKHOUSE_USER": "mcpscan-calibration-dummy",
+        "CLICKHOUSE_PASSWORD": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.taylorwilsdon/workspace-mcp",
+    "registry": "pypi",
+    "package": "workspace-mcp",
+    "version": "2.1.2",
+    "monthly_downloads": 245191,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "workspace-mcp==2.1.2"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.hashgraph-online/hol-guard",
+    "registry": "pypi",
+    "package": "hol-guard",
+    "version": "3.25.2",
+    "monthly_downloads": 222296,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "hol-guard==3.25.2",
+        "mcp",
+        "serve",
+        "--stdio"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.slingdata/sling-cli",
+    "registry": "pypi",
+    "package": "sling",
+    "version": "1.4.23.post1",
+    "monthly_downloads": 172375,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "sling==1.4.23.post1"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.oraios/serena",
+    "registry": "pypi",
+    "package": "serena-agent",
+    "version": "1.5.3",
+    "monthly_downloads": 151813,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "-p",
+        "3.13",
+        "start-mcp-server",
+        "--project-from-cwd",
+        "--context",
+        "desktop-app",
+        "serena-agent==1.5.3"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.appwrite/mcp",
+    "registry": "pypi",
+    "package": "mcp-server-appwrite",
+    "version": "1.0.23",
+    "monthly_downloads": 141785,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-appwrite==1.0.23"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.Q00/ouroboros",
+    "registry": "pypi",
+    "package": "ouroboros-ai",
+    "version": "0.51.5",
+    "monthly_downloads": 128439,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "ouroboros-ai[mcp]",
+        "--with",
+        "mcp==2.0.0",
+        "ouroboros",
+        "mcp",
+        "serve",
+        "--runtime",
+        "claude-cli"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.haris-musa/excel-mcp-server",
+    "registry": "pypi",
+    "package": "excel-mcp-server",
+    "version": "2.2.2",
+    "monthly_downloads": 127666,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "excel-mcp-server==2.2.2",
+        "stdio"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.chernistry/bernstein",
+    "registry": "pypi",
+    "package": "bernstein",
+    "version": "1.5.0",
+    "monthly_downloads": 113510,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "bernstein==1.5.0"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.PagerDuty/pagerduty-mcp",
+    "registry": "pypi",
+    "package": "pagerduty-mcp",
+    "version": "0.2.1",
+    "monthly_downloads": 93108,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "pagerduty-mcp==0.2.1",
+        "--enable-write-tools"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.duriantaco/skylos",
+    "registry": "pypi",
+    "package": "skylos",
+    "version": "3.5.10",
+    "monthly_downloads": 73556,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "skylos==3.5.10"
+      ],
+      "env": {
+        "SKYLOS_API_KEY": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.CrowdStrike/falcon-mcp",
+    "registry": "pypi",
+    "package": "falcon-mcp",
+    "version": "0.19.0",
+    "monthly_downloads": 63788,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "falcon-mcp==0.19.0"
+      ],
+      "env": {
+        "FALCON_CLIENT_ID": "mcpscan-calibration-dummy",
+        "FALCON_CLIENT_SECRET": "mcpscan-calibration-dummy",
+        "FALCON_MCP_API_KEY": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.D4umak/heylead",
+    "registry": "pypi",
+    "package": "heylead",
+    "version": "0.10.470",
+    "monthly_downloads": 59850,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "heylead==0.10.470"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.sirkirby/unifi-network-mcp",
+    "registry": "pypi",
+    "package": "unifi-network-mcp",
+    "version": "0.7.8",
+    "monthly_downloads": 57466,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "unifi-network-mcp==0.7.8"
+      ],
+      "env": {
+        "UNIFI_HOST": "https://example.invalid",
+        "UNIFI_USERNAME": "mcpscan-calibration-dummy",
+        "UNIFI_PASSWORD": "mcpscan-calibration-dummy",
+        "UNIFI_API_KEY": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.MervinPraison/praisonai",
+    "registry": "pypi",
+    "package": "praisonai",
+    "version": "2.3.42",
+    "monthly_downloads": 53407,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "praisonai==2.3.42"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "ai.anomalyarmor/armor-mcp",
+    "registry": "pypi",
+    "package": "armor-mcp",
+    "version": "0.6.1",
+    "monthly_downloads": 0,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "armor-mcp==0.6.1"
+      ],
+      "env": {
+        "ARMOR_API_KEY": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "ai.arsentev/contextburn",
+    "registry": "pypi",
+    "package": "contextburn",
+    "version": "0.2.1",
+    "monthly_downloads": 0,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "contextburn==0.2.1",
+        "mcp"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "ai.attestari/attestari",
+    "registry": "pypi",
+    "package": "attestari-mcp",
+    "version": "2.9.0",
+    "monthly_downloads": 0,
+    "config": {
+      "command": "uvx",
+      "args": [
+        "attestari-mcp==2.9.0"
+      ],
+      "env": {
+        "ATTESTARI_API_KEY": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.grafana/mcp-grafana",
+    "registry": "oci",
+    "package": "docker.io/grafana/mcp-grafana:2.1.1",
+    "version": null,
+    "monthly_downloads": 4388521,
+    "config": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GRAFANA_URL",
+        "-e",
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN",
+        "-e",
+        "GRAFANA_PASSWORD",
+        "docker.io/grafana/mcp-grafana:2.1.1"
+      ],
+      "env": {
+        "GRAFANA_URL": "https://example.invalid",
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN": "mcpscan-calibration-dummy",
+        "GRAFANA_PASSWORD": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.hashicorp/terraform-mcp-server",
+    "registry": "oci",
+    "package": "docker.io/hashicorp/terraform-mcp-server:1.0.0",
+    "version": null,
+    "monthly_downloads": 1580752,
+    "config": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "TFE_ADDRESS={address}",
+        "-e",
+        "TFE_TOKEN={token}",
+        "-e",
+        "ENABLE_TF_OPERATIONS={enabled}",
+        "docker.io/hashicorp/terraform-mcp-server:1.0.0"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.mongodb-js/mongodb-mcp-server",
+    "registry": "oci",
+    "package": "docker.io/mongodb/mongodb-mcp-server:2.1.0",
+    "version": null,
+    "monthly_downloads": 763983,
+    "config": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "MDB_MCP_API_CLIENT_SECRET",
+        "-e",
+        "MDB_MCP_VOYAGE_API_KEY",
+        "docker.io/mongodb/mongodb-mcp-server:2.1.0"
+      ],
+      "env": {
+        "MDB_MCP_API_CLIENT_SECRET": "mcpscan-calibration-dummy",
+        "MDB_MCP_VOYAGE_API_KEY": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.SonarSource/sonarqube-mcp-server",
+    "registry": "oci",
+    "package": "docker.io/sonarsource/sonarqube-mcp",
+    "version": null,
+    "monthly_downloads": 520686,
+    "config": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "SONARQUBE_TOKEN",
+        "docker.io/sonarsource/sonarqube-mcp"
+      ],
+      "env": {
+        "SONARQUBE_TOKEN": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.zereight/gitlab-mcp",
+    "registry": "oci",
+    "package": "docker.io/zereight050/gitlab-mcp:2.3.6",
+    "version": null,
+    "monthly_downloads": 505832,
+    "config": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITLAB_PERSONAL_ACCESS_TOKEN",
+        "-e",
+        "GITLAB_JOB_TOKEN",
+        "docker.io/zereight050/gitlab-mcp:2.3.6"
+      ],
+      "env": {
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "mcpscan-calibration-dummy",
+        "GITLAB_JOB_TOKEN": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "com.arcadedb/mcp-server",
+    "registry": "oci",
+    "package": "docker.io/arcadedata/arcadedb:26.4.1-SNAPSHOT",
+    "version": null,
+    "monthly_downloads": 494748,
+    "config": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "docker.io/arcadedata/arcadedb:26.4.1-SNAPSHOT"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.Souhar-dya/mcp-db-server",
+    "registry": "oci",
+    "package": "docker.io/souhardyak/mcp-db-server:1.3.1",
+    "version": null,
+    "monthly_downloads": 434062,
+    "config": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "docker.io/souhardyak/mcp-db-server:1.3.1"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.redis/mcp-redis",
+    "registry": "oci",
+    "package": "docker.io/mcp/redis:latest",
+    "version": null,
+    "monthly_downloads": 153211,
+    "config": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "docker.io/mcp/redis:latest"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.domdomegg/airtable-mcp-server",
+    "registry": "oci",
+    "package": "docker.io/domdomegg/airtable-mcp-server:1.14.0",
+    "version": null,
+    "monthly_downloads": 140295,
+    "config": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "AIRTABLE_API_KEY",
+        "docker.io/domdomegg/airtable-mcp-server:1.14.0"
+      ],
+      "env": {
+        "AIRTABLE_API_KEY": "mcpscan-calibration-dummy"
+      }
+    }
+  },
+  {
+    "server": "io.github.SigNoz/signoz-mcp-server",
+    "registry": "oci",
+    "package": "docker.io/signoz/signoz-mcp-server:v0.15.0",
+    "version": null,
+    "monthly_downloads": 97367,
+    "config": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "docker.io/signoz/signoz-mcp-server:v0.15.0"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.apurvsinghgautam/robin",
+    "registry": "oci",
+    "package": "docker.io/apurvsg/robin:v3.1",
+    "version": null,
+    "monthly_downloads": 62921,
+    "config": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-v",
+        "robin-investigations:/app/investigations",
+        "docker.io/apurvsg/robin:v3.1",
+        "mcp"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.dequelabs/axe-mcp-server",
+    "registry": "oci",
+    "package": "docker.io/dequesystems/axe-mcp-server:v1.0.2",
+    "version": null,
+    "monthly_downloads": 57589,
+    "config": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "docker.io/dequesystems/axe-mcp-server:v1.0.2"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.r33drichards/mcp-js",
+    "registry": "oci",
+    "package": "docker.io/wholelottahoopla/mcp-js:0.22.0",
+    "version": null,
+    "monthly_downloads": 54255,
+    "config": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "--env",
+        "PORT=",
+        "docker.io/wholelottahoopla/mcp-js:0.22.0"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "com.luthersystems.insideout/mcp",
+    "registry": "oci",
+    "package": "docker.io/luthersystems/insideout-mcp:v0.36.3",
+    "version": null,
+    "monthly_downloads": 52709,
+    "config": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "docker.io/luthersystems/insideout-mcp:v0.36.3"
+      ],
+      "env": {}
+    }
+  },
+  {
+    "server": "io.github.SikamikanikoBG/homelab-monitor",
+    "registry": "oci",
+    "package": "docker.io/sikamikaniko123/homelab-monitor:0.14.2",
+    "version": null,
+    "monthly_downloads": 44766,
+    "config": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "HOMELAB_MONITOR_URL",
+        "docker.io/sikamikaniko123/homelab-monitor:0.14.2",
+        "python",
+        "/app/mcp_server.py"
+      ],
+      "env": {
+        "HOMELAB_MONITOR_URL": "https://example.invalid"
+      }
+    }
+  }
+]

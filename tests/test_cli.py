@@ -142,3 +142,19 @@ def test_verify_without_lockfile_exits_two(tmp_path: Path, monkeypatch: pytest.M
 def test_urls_need_connect() -> None:
     result = runner.invoke(app, ["scan", "https://mcp.example.com/mcp"])
     assert result.exit_code == EXIT_ERROR
+
+
+def test_save_snapshots_round_trips_without_secrets(tmp_path: Path) -> None:
+    out = tmp_path / "snaps"
+    config = CONFIGS / "claude_desktop_config.json"
+    first = runner.invoke(app, ["scan", str(config), "--save-snapshots", str(out), "-f", "json",
+                                "--no-lock"])  # fmt: skip
+    files = sorted(out.glob("*.json"))
+    assert [f.name for f in files] == ["claude-desktop_user_filesystem.json",
+                                       "claude-desktop_user_github.json"]  # fmt: skip
+    assert all("ghp_FAKE" not in f.read_text(encoding="utf-8") for f in files)
+    rescanned = runner.invoke(app, ["scan", str(files[1]), "-f", "json", "--no-lock"])
+    before = {f["rule_id"] for f in json.loads(first.stdout)["findings"]}
+    after = {f["rule_id"] for f in json.loads(rescanned.stdout)["findings"]}
+    assert "MCP-CF-001" in before and "MCP-CF-001" not in after  # the secret itself was masked
+    assert "MCP-RP-003" in after
