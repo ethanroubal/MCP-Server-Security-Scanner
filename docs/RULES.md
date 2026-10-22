@@ -16,6 +16,7 @@ most-downloaded registry servers; see calibration/README.md.
 | MCP-TP-007 | Exfiltration via rendered links or images | ✅ |
 | MCP-TP-008 | Padding that pushes suspicious text out of view | ✅ |
 | MCP-TP-009 | Exfiltration-shaped parameters | ✅ |
+| MCP-TP-010 | Sentence classified as a prompt injection (`--classifier`, experimental) | ✅ |
 
 ## MCP-XS — Cross-server (§5.2)
 | Id | Title | Status |
@@ -41,4 +42,10 @@ most-downloaded registry servers; see calibration/README.md.
 | MCP-CF-005 | Over-broad filesystem scope | ✅ |
 | MCP-CF-006 | Tool calls approved without confirmation (client auto-approve settings) | ✅ |
 
-MCP-SRC, MCP-SC, MCP-TF and MCP-DY ids will be added with Phases 3–4.
+## MCP-TF — Toxic flows across servers (§5.7)
+| Id | Title | Status |
+|---|---|---|
+| MCP-TF-001 | Untrusted input, private data and an outbound channel in one agent | ✅ |
+| MCP-TF-002 | Untrusted input and code execution or destructive tools in one agent | ✅ |
+
+MCP-SRC, MCP-SC and MCP-DY ids will be added with Phases 3–4.

@@ -1,0 +1,4 @@
+{
+  "description": "Read-only tools with no untrusted input: weather, a calculator and docs search. Nothing should fire.",
+  "expected_rules": []
+}

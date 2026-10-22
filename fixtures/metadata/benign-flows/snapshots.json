@@ -1,0 +1,98 @@
+[
+  {
+    "id": "fx-benign-flows-weather",
+    "name": "weather",
+    "origin": {
+      "kind": "config",
+      "client": "cursor",
+      "config_path": "~/.cursor/mcp.json",
+      "ref": "weather"
+    },
+    "launch": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "weather-mcp==1.0.0"
+      ]
+    },
+    "tools": [
+      {
+        "name": "get_forecast",
+        "description": "Returns the forecast for a city.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "fx-benign-flows-calc",
+    "name": "calc",
+    "origin": {
+      "kind": "config",
+      "client": "cursor",
+      "config_path": "~/.cursor/mcp.json",
+      "ref": "calc"
+    },
+    "launch": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "calc-mcp==1.0.0"
+      ]
+    },
+    "tools": [
+      {
+        "name": "add",
+        "description": "Adds two numbers.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "a": {
+              "type": "number"
+            },
+            "b": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "fx-benign-flows-docs",
+    "name": "docs",
+    "origin": {
+      "kind": "config",
+      "client": "cursor",
+      "config_path": "~/.cursor/mcp.json",
+      "ref": "docs"
+    },
+    "launch": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "docs-mcp==1.0.0"
+      ]
+    },
+    "tools": [
+      {
+        "name": "search_docs",
+        "description": "Searches the product documentation.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    ]
+  }
+]

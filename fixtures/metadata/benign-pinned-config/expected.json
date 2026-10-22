@@ -1,4 +1,6 @@
 {
-  "description": "A well-configured setup: pinned versions and digests, ${VAR} secret references, TLS, and a localhost server over http. Nothing should fire.",
-  "expected_rules": []
+  "description": "A well-configured setup: pinned versions and digests, ${VAR} secret references, TLS, and a localhost server over http. No config findings; but GitHub (untrusted issues, private files) plus fetch (an outbound URL) in one client is a toxic flow (MCP-TF-001).",
+  "expected_rules": [
+    "MCP-TF-001"
+  ]
 }

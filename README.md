@@ -4,7 +4,7 @@ Security scanner for Model Context Protocol (MCP) servers: tool poisoning, cross
 rug pulls, insecure configuration, vulnerable implementations and dangerous combinations of servers.
 It works fully offline; bringing your own LLM is optional. Design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-**Status: Phase 1 complete.** 21 rules (see [docs/RULES.md](docs/RULES.md)) run on client
+**Status: Phase 1 complete; Phase 2 started (toxic flows, experimental classifier).** 24 rules (see [docs/RULES.md](docs/RULES.md)) run on client
 configs, snapshot files and, with `--connect`, on what servers actually serve.
 
 ## Usage
@@ -22,12 +22,34 @@ mcpscan scan -f sarif -o mcpscan.sarif   # for GitHub code scanning
 mcpscan lock --connect            # pin launch configs and tool definitions to mcp-lock.json
 mcpscan verify --connect          # exit 1 if anything changed or was added since the lock
 mcpscan inspect --connect <target>   # show the text the model reads, hidden characters revealed
+mcpscan flows                     # each client's tool capabilities and the toxic flows between them
+mcpscan scan --classifier         # experimental: add the local ML classifier (pip install 'mcpscan[ml]')
 ```
 
 Supported clients: Claude Desktop, Claude Code, Cursor, VS Code, Windsurf, Zed, Cline, Roo Code,
 Gemini CLI, Codex CLI, Continue, Goose, Amazon Q Developer CLI, Kiro, opencode and LM Studio, on
 macOS, Linux and Windows. See [docs/CLIENTS.md](docs/CLIENTS.md) for paths and formats.
 Reports never contain secret values.
+
+### Toxic flows
+
+Servers that are harmless alone can be dangerous together. mcpscan labels every tool (reads
+untrusted content, reads private data, sends data out, runs code, destroys data) from its name,
+its parameters and a table of well-known servers, then looks across all servers one client
+loads. **MCP-TF-001** reports the "lethal trifecta", e.g. `github.get_issue -> filesystem.read_file
+-> slack.post_message`: one poisoned issue can make the agent read your files and post them.
+**MCP-TF-002** reports untrusted content next to code execution or destructive tools. Flows across
+servers are high severity (critical if the last step is auto-approved); flows inside a single
+server, which are usually by design, are lower. Well-known servers count even without
+`--connect`.
+
+### Experimental classifier
+
+`--classifier` adds a local prompt-injection model (protectai/deberta-v3-base-prompt-injection-v2,
+Apache-2.0, ~740 MB, downloaded once and verified against pinned hashes). It catches some reworded
+attacks the phrase rules miss, but it was trained on chat prompts and flags ordinary usage
+guidance in tool descriptions too, so its findings are low severity and meant as a review
+queue. Measurements: [calibration/README.md](calibration/README.md).
 
 ### Policy file
 
@@ -89,7 +111,7 @@ detected. Method, scripts and results: [calibration/README.md](calibration/READM
 ## Development
 
 ```bash
-uv sync
+uv sync --all-extras
 uv run mcpscan scan fixtures/metadata/unicode-tag-smuggling/snapshots.json
 uv run mcpscan scan fixtures/configs/claude_desktop_config.json
 uv run mcpscan inspect fixtures/metadata/unicode-tag-smuggling/snapshots.json

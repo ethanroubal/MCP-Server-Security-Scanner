@@ -23,6 +23,13 @@ Documentation = "https://github.com/ethanroubal/MCP-Server-Security-Scanner/tree
 [project.scripts]
 mcpscan = "mcpscan.cli:app"
 
+[project.optional-dependencies]
+ml = [
+    "numpy>=1.26",
+    "onnxruntime>=1.18",
+    "tokenizers>=0.19",
+]
+
 # Third-party rule packs register here, e.g.
 # [project.entry-points."mcpscan.rules"]
 # my_rules = "my_package.rules"

@@ -1,0 +1,98 @@
+[
+  {
+    "id": "fx-toxic-trifecta-tracker",
+    "name": "tracker",
+    "origin": {
+      "kind": "config",
+      "client": "cursor",
+      "config_path": "~/.cursor/mcp.json",
+      "ref": "tracker"
+    },
+    "launch": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "tracker-mcp==1.0.0"
+      ]
+    },
+    "tools": [
+      {
+        "name": "get_issue",
+        "description": "Gets an issue by number.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "number": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "fx-toxic-trifecta-files",
+    "name": "files",
+    "origin": {
+      "kind": "config",
+      "client": "cursor",
+      "config_path": "~/.cursor/mcp.json",
+      "ref": "files"
+    },
+    "launch": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "files-mcp==1.0.0"
+      ]
+    },
+    "tools": [
+      {
+        "name": "read_file",
+        "description": "Reads a file from the workspace.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "fx-toxic-trifecta-chat",
+    "name": "chat",
+    "origin": {
+      "kind": "config",
+      "client": "cursor",
+      "config_path": "~/.cursor/mcp.json",
+      "ref": "chat"
+    },
+    "launch": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "chat-mcp==1.0.0"
+      ]
+    },
+    "tools": [
+      {
+        "name": "send_message",
+        "description": "Sends a chat message to a channel.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    ]
+  }
+]

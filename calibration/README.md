@@ -76,3 +76,32 @@ strings).
 The remaining 38 mostly can't be listed without information the registry doesn't carry: real
 credentials or service URLs validated at startup, subcommands or arguments the registry entry
 omits, packages broken against `mcp` 2.x, or servers that crash in any environment.
+
+## 2026-10 run: toxic flows and the classifier
+
+`rescan.py` against the same snapshots (each server scanned alone, so these are single-server
+flows; cross-server flows only exist across a client's servers):
+
+- **Capability labels** from tool names first over-labelled: `openWorldHint` / `destructiveHint`
+  are set loosely by real servers, "fetch" and "request" are generic verbs, and nouns like
+  "notebook" or "commands" don't mean code runs. Fixing those (tests in `tests/test_flows.py`)
+  cut MCP-TF-002 from 24 servers to 12.
+- **What remains** is mostly real and by design: GitLab reading issues and files and opening
+  merge requests, mail and chat servers that read and send (MCP-TF-001, 13 servers, medium);
+  browser servers that also evaluate JavaScript (MCP-TF-002, 12 servers, low). A few are
+  name-based guesses (console messages counted as untrusted input).
+
+**Classifier** (`classifier_scores.py` and the variants it led to). Off the shelf, the model
+can't separate tool metadata from attacks:
+
+| Applied to | Benign fields flagged (of 59 servers' text) | Attack fixtures | Reworded attacks the rules miss |
+|---|---|---|---|
+| All text fields, raw, p >= 0.99 | 1,111 | 4 / 10 | 1 / 3 |
+| Descriptions only, 80+ chars, p >= 0.99 | 426 | 5 / 10 | 1 / 3 |
+| Sentences addressed to the model, p >= 0.999 (shipped) | 210 (24 servers) | 4 / 10 | 2 / 3 |
+
+It was trained on chat prompts to flag text that instructs an LLM, and MCP descriptions instruct
+the LLM by design ("MUST ask the user in the language they are using"). Hidden-text attacks score
+near zero until decoded. So `--classifier` ships as an experimental, low-severity review queue.
+The fix is a model fine-tuned on MCP metadata: these snapshots are the benign half of that
+training set.

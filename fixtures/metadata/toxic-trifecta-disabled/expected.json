@@ -1,0 +1,4 @@
+{
+  "description": "The same three servers, but the chat server is disabled in the client config: no outbound leg, no flow.",
+  "expected_rules": []
+}

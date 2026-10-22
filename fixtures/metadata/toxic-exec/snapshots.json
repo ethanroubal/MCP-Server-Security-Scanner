@@ -1,0 +1,64 @@
+[
+  {
+    "id": "fx-toxic-exec-web",
+    "name": "web",
+    "origin": {
+      "kind": "config",
+      "client": "cursor",
+      "config_path": "~/.cursor/mcp.json",
+      "ref": "web"
+    },
+    "launch": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "web-mcp==1.0.0"
+      ]
+    },
+    "tools": [
+      {
+        "name": "fetch_url",
+        "description": "Fetches a web page.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "fx-toxic-exec-shell",
+    "name": "shell",
+    "origin": {
+      "kind": "config",
+      "client": "cursor",
+      "config_path": "~/.cursor/mcp.json",
+      "ref": "shell"
+    },
+    "launch": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "shell-mcp==1.0.0"
+      ]
+    },
+    "tools": [
+      {
+        "name": "run_command",
+        "description": "Runs a shell command.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    ]
+  }
+]

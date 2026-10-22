@@ -1,0 +1,6 @@
+{
+  "description": "Three individually harmless servers in one client: an issue reader (untrusted input), a file reader (private data) and a chat sender (outbound). Together, one poisoned issue can exfiltrate files.",
+  "expected_rules": [
+    "MCP-TF-001"
+  ]
+}

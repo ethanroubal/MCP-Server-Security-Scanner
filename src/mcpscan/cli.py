@@ -24,10 +24,12 @@ from mcpscan import __version__
 from mcpscan.acquire import ConnectOptions, connect_all
 from mcpscan.acquire.oauth import open_in_browser
 from mcpscan.core.lockfile import LOCKFILE_NAME, Lockfile, build_lockfile
-from mcpscan.core.models import ScanResult, ServerSnapshot, Severity
+from mcpscan.core.models import CapabilityLabel, Category, ScanResult, ServerSnapshot, Severity
+from mcpscan.core.pipeline import inventories
 from mcpscan.core.pipeline import scan as run_scan
 from mcpscan.core.policy import POLICY_FILE, Policy, PolicyError
 from mcpscan.core.text import iter_text_fields, reveal
+from mcpscan.flows import inventory_capabilities
 from mcpscan.report import json_report, sarif, terminal
 from mcpscan.rules import Rule, load_rules
 from mcpscan.targets import TargetError, Targets, resolve
@@ -270,6 +272,16 @@ def _save_snapshots(snapshots: list[ServerSnapshot], directory: Path) -> None:
         path.write_text(snapshot.model_dump_json(indent=2) + "\n", encoding="utf-8")
 
 
+def _classifier_rule() -> Rule:
+    from mcpscan.classifier import ClassifierUnavailable, load
+    from mcpscan.classifier.rule import ClassifierRule
+
+    try:
+        return ClassifierRule(load(progress=lambda m: err.print(Text(m, style="dim"))))
+    except ClassifierUnavailable as exc:
+        _fail(str(exc))
+
+
 def _load_lock(path: Path) -> Lockfile:
     try:
         return Lockfile.load(path)
@@ -343,6 +355,14 @@ def scan(
             "so it can be rescanned offline later.",
         ),
     ] = None,
+    classifier: Annotated[
+        bool,
+        typer.Option(
+            "--classifier",
+            help="Experimental: also run the local prompt-injection classifier (needs "
+            "`mcpscan[ml]`; downloads a ~740 MB model once). Its findings are low severity.",
+        ),
+    ] = False,
     plugins: PluginsOpt = True,
 ) -> None:
     """Scan MCP servers for security issues."""
@@ -364,6 +384,8 @@ def scan(
     if save_snapshots:
         _save_snapshots(targets.snapshots, save_snapshots)
     rules = load_rules(plugins=plugins)
+    if classifier:
+        rules.append(_classifier_rule())
     result = run_scan(targets.snapshots, rules, lock=lock).model_copy(update={"warnings": warnings})
     result = policy.apply(result)
     _emit(result, rules, fmt, output)
@@ -488,6 +510,50 @@ def inspect_cmd(
             shown = reveal(tf.text)
             out.print(Text(tf.location.json_pointer or "", style="dim"))
             out.print(Text(f"  {shown}", style="bold yellow" if shown != tf.text else ""))
+
+
+@app.command("flows")
+def flows_cmd(
+    target: TargetArg = None,
+    connect: ConnectOpt = False,
+    sandbox: SandboxOpt = SandboxMode.DOCKER,
+    real_credentials: RealCredentialsOpt = False,
+    timeout: TimeoutOpt = 60.0,
+    jobs: JobsOpt = 4,
+) -> None:
+    """Show each client's tool capabilities and the toxic flows between them."""
+    targets, _ = _targets(
+        target, connect=connect, sandbox=sandbox, real_credentials=real_credentials,
+        timeout=timeout, jobs=jobs,
+    )  # fmt: skip
+    flow_rules = [r for r in load_rules(plugins=False) if r.category is Category.TOXIC_FLOW]
+    short = {
+        CapabilityLabel.INGESTS_UNTRUSTED_CONTENT: "untrusted-in",
+        CapabilityLabel.READS_PRIVATE_DATA: "private-data",
+        CapabilityLabel.EXTERNAL_COMMUNICATION: "sends-out",
+        CapabilityLabel.EXECUTES_CODE: "runs-code",
+        CapabilityLabel.WRITES_FILES: "writes-files",
+        CapabilityLabel.DESTRUCTIVE: "destructive",
+    }
+    for client, inventory in inventories(targets.snapshots).items():
+        caps = inventory_capabilities(inventory)
+        out.rule(Text(f"{client or 'snapshots'}: {len(inventory)} server(s)"))
+        if not caps:
+            out.print(Text("  no labelled tools (add --connect to list tools)", style="dim"))
+            continue
+        table = Table("Tool", "Capabilities", "Source")
+        for cap in caps:
+            labels = ", ".join(short.get(label, label.value) for label in cap.labels)
+            source = "known server" if cap.known else "listed"
+            table.add_row(Text(reveal(cap.qualified)), labels,
+                          source + (", auto-approved" if cap.auto_approved else ""))  # fmt: skip
+        out.print(table)
+        result = run_scan(inventory, flow_rules)
+        for f in result.findings:
+            badge = Text(f" {f.severity.value.upper()} ", style=terminal.SEVERITY_STYLE[f.severity])
+            out.print(badge + Text(f" {f.rule_id} {reveal(f.rationale)}"), soft_wrap=True)
+        if not result.findings:
+            out.print(Text("  no toxic flows", style="green"))
 
 
 @app.command("rules")

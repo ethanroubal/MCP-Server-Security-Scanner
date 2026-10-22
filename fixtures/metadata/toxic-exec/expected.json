@@ -1,0 +1,6 @@
+{
+  "description": "A web fetcher and a shell in one client: content from any web page can run commands.",
+  "expected_rules": [
+    "MCP-TF-002"
+  ]
+}
