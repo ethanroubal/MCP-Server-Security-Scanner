@@ -50,6 +50,40 @@ def test_generic_names_are_not_over_labelled() -> None:
     assert set(label_tool(ToolDef(name="run_python_script"))) == {L.EXECUTES_CODE}
 
 
+@pytest.mark.parametrize(
+    ("name", "params", "expected"),
+    [
+        # all mislabelled in the cross-server review (calibration/README.md)
+        ("scraping_browser_go_forward", {}, NONE),
+        ("discourse_read_post", {}, {L.INGESTS_UNTRUSTED_CONTENT}),
+        ("create-mail-folder", {}, NONE),
+        ("create-reply-draft", {}, NONE),
+        ("create-onenote-page", {}, NONE),
+        ("get-download-url", {}, NONE),
+        ("read_resource", {"uri": {}}, NONE),
+        ("get_file_info", {}, NONE),
+        ("list-mail-folders", {}, NONE),
+        ("list_tables", {}, NONE),
+        ("select_page", {}, NONE),
+        ("force_terminate", {}, NONE),
+        ("browser_drop", {}, NONE),
+        ("evaluate_reconstruction_coverage", {}, NONE),
+        # and the ones that must survive the fixes
+        ("forward-mail-message", {}, {L.EXTERNAL_COMMUNICATION}),
+        ("send-draft-message", {}, {L.EXTERNAL_COMMUNICATION}),
+        ("drop-collection", {}, {L.DESTRUCTIVE}),
+        ("browser_evaluate", {}, {L.EXECUTES_CODE}),
+        ("run_select_query", {}, {L.READS_PRIVATE_DATA}),
+        ("list-mail-folder-messages", {},
+         {L.INGESTS_UNTRUSTED_CONTENT, L.READS_PRIVATE_DATA}),
+    ],
+)  # fmt: skip
+def test_labels_from_the_cross_server_review(
+    name: str, params: dict[str, object], expected: set[L]
+) -> None:
+    assert set(label_tool(ToolDef(name=name, input_schema={"properties": params}))) == expected
+
+
 def _flows(case: str, **settings: object):
     snapshots = load_snapshots(FIXTURES / case / "snapshots.json")
     if settings:

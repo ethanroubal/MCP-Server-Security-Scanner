@@ -26,14 +26,14 @@ L = CapabilityLabel
 
 _READ = {"read", "get", "list", "search", "query", "fetch", "show", "view", "find", "describe",
          "download", "retrieve", "lookup", "browse", "scrape", "crawl", "navigate", "open",
-         "export", "cat", "load", "select", "check"}  # fmt: skip
+         "export", "cat", "load", "check"}  # fmt: skip
 # Verbs that fetch outside content by themselves. "fetch" and "get" alone don't: they're
 # generic (fetchAccessibilityIssues), so they need a URL parameter or a web noun.
 _FETCH = {"scrape", "crawl", "browse", "navigate", "goto", "visit", "websearch", "curl", "wget",
           "webfetch"}  # fmt: skip
-_WEB_NOUNS = {"web", "url", "page", "pages", "site", "website", "html", "http", "internet",
-              "online", "google"}  # fmt: skip
-_UNTRUSTED_NOUNS = {"web", "url", "page", "pages", "site", "website", "browser", "html", "issue",
+# Not "page" (OneNote, Slides, Notion pages are private) or "url" (get_download_url returns one).
+_WEB_NOUNS = {"web", "site", "website", "html", "http", "internet", "online", "google"}
+_UNTRUSTED_NOUNS = {"web", "site", "website", "browser", "html", "issue",
                     "issues", "pr", "prs", "pull", "comment", "comments", "email", "emails", "mail",
                     "inbox", "message", "messages", "ticket", "tickets", "tweet", "tweets", "feed",
                     "rss", "news", "chat", "channel", "thread", "threads", "discussion", "review",
@@ -50,23 +50,40 @@ _PRIVATE_NOUNS = {"file", "files", "directory", "dir", "folder", "document", "do
                   "orders"}  # fmt: skip
 _SEND = {"send", "post", "publish", "reply", "notify", "tweet", "upload", "share", "invite",
          "forward", "email", "webhook", "dm", "broadcast", "sms", "push"}  # fmt: skip
+# Words that are sends as verbs but often nouns: a read verb wins (discourse_read_post), and
+# "forward" needs something to forward (scraping_browser_go_forward navigates).
+_SEND_NOUNS = {"post", "tweet", "email", "push", "webhook", "dm", "sms"}
+_FORWARDABLE = {"mail", "email", "message", "messages", "event", "draft"}
+# Objects that stay in the user's own account until something sends them.
+_NOT_SENT = {"draft", "drafts", "folder", "folders"}
 _CREATE = {"create", "add", "update", "submit", "open", "comment", "write", "set", "edit"}
 _OUTBOUND_NOUNS = {"message", "messages", "email", "mail", "comment", "comments", "issue",
                    "issues", "pr", "pull", "post", "tweet", "webhook", "chat", "sms",
-                   "notification", "invite", "review", "discussion", "gist", "page",
+                   "notification", "invite", "review", "discussion", "gist",
                    "slack", "discord"}  # fmt: skip
+# When a tool's name ends in one of these, it returns facts about the data, not the data or
+# anyone's writing (get_file_info, list-mail-folders, list_tables, get-mail-tips).
+_METADATA = {"info", "structure", "schema", "permission", "permissions", "access", "link",
+             "tips", "settings", "folders", "rules", "overrides", "tables",
+             "databases", "collections", "indexes"}  # fmt: skip
 # Unambiguous on their own; the nouns below need a run verb (create-onenote-notebook and
 # addPercySnapshotCommands don't run anything).
-_EXEC = {"exec", "execute", "shell", "bash", "terminal", "eval", "evaluate", "repl",
-         "interpreter", "subprocess"}  # fmt: skip
+_EXEC = {"exec", "execute", "shell", "bash", "terminal", "eval", "repl", "interpreter",
+         "subprocess"}  # fmt: skip
+# "evaluate" needs code to evaluate (evaluate_reconstruction_coverage doesn't run any).
+_EVALUATES = {"browser", "debugger", "expression", "js", "javascript", "script"}
 _EXEC_NOUNS = {"command", "commands", "script", "scripts", "code", "program", "binary",
                "process", "python", "javascript", "js", "notebook", "cell",
                "container"}  # fmt: skip
 _RUN = {"run", "start", "spawn", "launch", "invoke"}
 _WRITE = {"write", "edit", "save", "patch", "apply", "move", "rename", "copy", "append", "mkdir"}
 _FILE_NOUNS = {"file", "files", "directory", "dir", "folder", "path"}
-_DESTROY = {"delete", "remove", "drop", "destroy", "truncate", "purge", "kill", "terminate",
-            "wipe", "reset", "rm", "rmdir", "uninstall", "revoke"}  # fmt: skip
+# Not "kill" or "terminate": stopping a process loses no data.
+_DESTROY = {"delete", "remove", "destroy", "truncate", "purge", "wipe", "reset", "rm", "rmdir",
+            "uninstall", "revoke"}  # fmt: skip
+# "drop" needs a data store (browser_drop is drag and drop).
+_DROPPABLE = {"collection", "database", "db", "table", "index", "schema", "keyspace", "bucket"}
+_QUERY = {"query", "sql"}
 _URL_PARAMS = {"url", "uri", "href", "link", "endpoint", "webhook", "webhook_url", "target_url"}
 
 
@@ -85,7 +102,8 @@ def _param_names(schema: Mapping[str, Any]) -> set[str]:
 
 def label_tool(tool: ToolDef) -> dict[CapabilityLabel, str]:
     """Capability -> the reason it was assigned, for one tool."""
-    w = set(words(tool.name))
+    names = words(tool.name)
+    w = set(names)
     params = _param_names(tool.input_schema)
     labels: dict[CapabilityLabel, str] = {}
 
@@ -94,7 +112,9 @@ def label_tool(tool: ToolDef) -> dict[CapabilityLabel, str]:
 
     # Annotations aren't used: calibration found openWorldHint and destructiveHint set loosely
     # (a "find organizations" tool marked open-world, browser_click marked destructive).
-    url_param = bool(params & _URL_PARAMS)
+    # read_resource(uri) and get_sentry_resource(url) read from the server's own service
+    url_param = bool(params & _URL_PARAMS) and not w & {"resource", "resources"}
+    reads = bool(w & _READ) and names[-1] not in _METADATA
     generic_read = bool(w & {"fetch", "get", "search", "read", "open"})
     fetches = (
         bool(w & _FETCH) or w == {"fetch"} or (generic_read and (bool(w & _WEB_NOUNS) or url_param))
@@ -103,17 +123,25 @@ def label_tool(tool: ToolDef) -> dict[CapabilityLabel, str]:
         add(L.INGESTS_UNTRUSTED_CONTENT, "fetches outside content")
         if url_param:
             add(L.EXTERNAL_COMMUNICATION, "requests a URL the model chooses (data can go in it)")
-    if w & _READ and w & _UNTRUSTED_NOUNS:
+    if reads and w & _UNTRUSTED_NOUNS:
         add(L.INGESTS_UNTRUSTED_CONTENT, f"reads {', '.join(sorted(w & _UNTRUSTED_NOUNS))}")
-    if w & _READ and w & _PRIVATE_NOUNS:
+    if reads and w & _PRIVATE_NOUNS:
         add(L.READS_PRIVATE_DATA, f"reads {', '.join(sorted(w & _PRIVATE_NOUNS))}")
-    if w & _SEND or (w & _CREATE and w & _OUTBOUND_NOUNS):
+    if w & _QUERY and w & (_RUN | {"execute", "exec"}):
+        add(L.READS_PRIVATE_DATA, "queries a database")
+    sends = w & _SEND
+    if w & _READ:
+        sends -= _SEND_NOUNS
+    if not w & _FORWARDABLE:
+        sends -= {"forward"}
+    if ((sends or (w & _CREATE and w & _OUTBOUND_NOUNS))
+            and not (w & _NOT_SENT and "send" not in w)):  # fmt: skip
         add(L.EXTERNAL_COMMUNICATION, "sends or posts content")
-    if w & _EXEC or (w & _RUN and w & _EXEC_NOUNS):
+    if w & _EXEC or (w & _RUN and w & _EXEC_NOUNS) or ("evaluate" in w and w & _EVALUATES):
         add(L.EXECUTES_CODE, "runs commands or code")
     if w & _WRITE and (w & _FILE_NOUNS or "write" in w):
         add(L.WRITES_FILES, "writes files")
-    if w & _DESTROY:
+    if w & _DESTROY or ("drop" in w and w & _DROPPABLE):
         add(L.DESTRUCTIVE, "deletes or destroys")
     return labels
 

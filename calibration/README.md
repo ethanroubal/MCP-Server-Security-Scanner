@@ -8,6 +8,7 @@ uv run python calibration/build_targets.py          # rank the registry, write t
 uv run python calibration/run.py --run NAME         # scan every target in the Docker sandbox
 uv run python calibration/report.py --run NAME      # REPORT.md + labels.yaml for review
 uv run python calibration/rescan.py --from NAME --to NAME-tuned   # rerun rules offline
+uv run python calibration/flows_review.py --run NAME   # cross-server flows on combined servers
 ```
 
 - **build_targets.py** pages the official MCP registry, keeps the latest stdio packages (npm,
@@ -20,6 +21,8 @@ uv run python calibration/rescan.py --from NAME --to NAME-tuned   # rerun rules 
   `--allow-network` / `--allow-install-scripts` pass the matching opt-ins through.
 - **report.py** writes `results/NAME/REPORT.md` (coverage, then every finding by rule) and
   `labels.yaml` (one entry per finding, for tp / fp / unsure verdicts; kept across reruns).
+- **flows_review.py** puts a run's saved snapshots into one client, as if installed together:
+  a handful of realistic setups, then 1,000 random three-server ones for the base rate.
 - **rescan.py** reruns the current rules against a run's saved snapshots, launching nothing, so
   a rule change can be measured in seconds.
 
@@ -105,6 +108,38 @@ the LLM by design ("MUST ask the user in the language they are using"). Hidden-t
 near zero until decoded. So `--classifier` ships as an experimental, low-severity review queue.
 The fix is a model fine-tuned on MCP metadata: these snapshots are the benign half of that
 training set.
+
+## 2026-10 run: cross-server flows
+
+Calibration scans each server alone, so `flows_review.py` combined the 59 listed servers into
+setups people plausibly run (GitLab + Desktop Commander + Chrome DevTools, Microsoft 365 +
+Google Workspace, MongoDB + ClickHouse + Airtable + Tavily, SearXNG + Desktop Commander, ...).
+
+- **Chains were mostly right in shape but often picked a wrong step.** Fixed (each has a test in
+  `tests/test_flows.py`): "forward" in `go_forward` and "post" in `read_post` counted as sending;
+  mail folders, rules and drafts counted as outbound (`send-draft-message` still does); OneNote
+  and Slides "pages" counted as web pages and `get-download-url` as a fetch; `read_resource(uri)`
+  as a request to any URL; names ending in metadata (`get_file_info`, `list_tables`,
+  `list-mail-folders`) as private data; `select_page` as a read; stopping a process
+  (`force_terminate`, `kill_process`) and `browser_drop` (drag and drop) as destroying data;
+  `evaluate_reconstruction_coverage` as running code. Running a SQL query now counts as reading
+  private data. Labelled tools went from 73 to 60 (outbound), 89 to 70 (untrusted input), 141 to
+  123 (private data), 24 to 21 (code) and 59 to 55 (destructive).
+- **A read-only set (Context7, Repomix, Nx, Figma) has no flows**; every other realistic setup
+  has a high MCP-TF-001 or TF-002, with chains that read correctly, e.g. `gitlab.get_issue ->
+  desktop-commander.list_directory -> chrome-devtools.navigate_page` and `searxng_web_search ->
+  desktop-commander.start_process`.
+- **Base rate: 54% of random three-server setups get a high MCP-TF-001, 42% a high TF-002**
+  (57% / 43% before the fixes). That is mostly real rather than noise: of the 59 servers, 24
+  take in untrusted content, 27 read private data, 20 can send data out and 15 run code, so
+  three random popular servers usually complete the trifecta. The finding still separates
+  setups (a read-only or single-purpose set doesn't fire), and the chain says which server to
+  move to another client.
+- **Weakest leg: outbound writes into the user's own service** (an Airtable comment, a Sentry
+  issue update). They only leak to an attacker who can read that service, which names can't
+  tell; a public GitLab issue can. They are kept as outbound, and the chain shows which step it
+  is. Single-server results after the fixes: MCP-TF-001 on 12 servers (medium), TF-002 on 13
+  (low).
 
 ## Typosquat targets (MCP-XS-003)
 
