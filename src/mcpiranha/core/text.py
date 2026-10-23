@@ -17,7 +17,17 @@ from mcpiranha.core.models import Location, ServerSnapshot
 FieldKind = Literal[
     "name", "title", "description", "instructions", "uri", "property-name", "enum", "default",
     "const", "example",
+    # fetched while listing (ServerSnapshot.content): prompt bodies, resource contents, logs,
+    # and the text of sampling / elicitation requests
+    "prompt-body", "resource-content", "log", "sampling", "elicitation",
 ]  # fmt: skip
+CONTENT_KINDS: frozenset[str] = frozenset(
+    {"prompt-body", "resource-content", "log", "sampling", "elicitation"}
+)
+_CONTENT_FIELD: dict[str, FieldKind] = {
+    "prompt": "prompt-body", "resource": "resource-content", "log": "log",
+    "sampling": "sampling", "elicitation": "elicitation",
+}  # fmt: skip
 
 # Schema keys whose string values are shown to the model.
 _SCHEMA_TEXT_KEYS: dict[str, FieldKind] = {
@@ -89,6 +99,12 @@ def iter_text_fields(snapshot: ServerSnapshot) -> Iterator[TextField]:
     for i, resource in enumerate(snapshot.resources):
         base, loc = f"/resources/{i}", Location(server_id=snapshot.id, resource=resource.uri)
         yield from _fields(resource, (("uri", "uri"), *_ITEM_KEYS), loc, base)
+
+    for i, item in enumerate(snapshot.content):
+        loc = Location(server_id=snapshot.id, json_pointer=f"/content/{i}/text",
+                       prompt=item.ref if item.kind == "prompt" else None,
+                       resource=item.ref if item.kind == "resource" else None)  # fmt: skip
+        yield TextField(loc, _CONTENT_FIELD[item.kind], item.text)
 
 
 def _walk_schema(node: Any, pointer: str, loc: Location) -> Iterator[TextField]:

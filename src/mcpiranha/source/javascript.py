@@ -23,6 +23,23 @@ _DECODE = re.compile(r"\batob\s*\(|['\"](base64|hex)['\"]|\binflate|\bgunzip|\bd
 _RUNNERS = frozenset({"eval", "Function", "runInThisContext", "runInNewContext", "runInContext",
                       "compileFunction"})  # fmt: skip
 _ENUMERATE = frozenset({"Object.entries", "Object.keys", "Object.values"})
+_BARE_SHELL = re.compile(
+    r"""\(\s*['"`](/bin/)?(ba|z)?sh|cmd(\.exe)?|powershell(\.exe)?['"`]\s*[,)]"""
+)
+_SOCKET = re.compile(r"\bnew\s+(net\.)?Socket\s*\(|\bnet\.(connect|createConnection)\s*\(")
+_HOME_OR_ROOT = re.compile(
+    r"""\(\s*(os\.homedir\(\)|homedir\(\)|process\.env\.HOME|['"`]/['"`]|['"`]~['"`])\s*[,)]"""
+)
+_EXECUTED_NAME = re.compile(
+    r"\b(?:exec|execSync|spawn|spawnSync|execFile|execFileSync|execa|execaSync)\s*\(\s*"
+    r"([A-Za-z_$][\w$]*)\s*[,)]"
+)
+_OBFUSCATOR = re.compile(r"\b_0x[0-9a-f]{4,6}\b")
+OBFUSCATED_NAMES = 50
+_WRITTEN_NAME = re.compile(
+    r"\b(?:writeFile|writeFileSync|appendFile|appendFileSync|createWriteStream|copyFile"
+    r"|copyFileSync|outputFile|outputFileSync|writeJson|writeJsonSync)\s*\(\s*([A-Za-z_$][\w$]*)\s*[,)]"
+)
 
 
 @cache
@@ -85,8 +102,14 @@ def _statement(node: Node) -> Node:
 
 class _Analyzer:
     def __init__(self, path: str, source: bytes) -> None:
-        self.path, self.lines = path, source.decode("utf-8", "replace").splitlines()
+        text = source.decode("utf-8", "replace")
+        self.path, self.lines = path, text.splitlines()
         self.hits: list[SourceHit] = []
+        self.shells: list[Node] = []
+        # names a write call targets: fs.writeFileSync(CONFIG, ...) after const CONFIG = "..."
+        self.written = {m.group(1) for m in _WRITTEN_NAME.finditer(text)}
+        self.executed = {m.group(1) for m in _EXECUTED_NAME.finditer(text)}
+        self.sets_approval = bool(patterns.APPROVE_SETTING.search(text))
 
     def hit(self, node: Node, kind: SourceHitKind, detail: str) -> None:
         row, column = node.start_point
@@ -131,6 +154,43 @@ class _Analyzer:
             self.env_enumeration(node, f"{callee}(process.env)")
         elif short in _RUNNERS and args is not None and _DECODE.search(arg_text[:2000]):
             self.hit(node, "dynamic_code", f"{short}() of decoded or downloaded code")
+        elif short in ("spawn", "exec", "execFile", "fork") and _BARE_SHELL.match(arg_text):
+            self.shells.append(node)  # judged at the end: a shell plus a socket
+        elif short in ("rmSync", "rm", "rmdirSync", "rmdir", "remove", "removeSync",
+                       "emptyDir", "emptyDirSync") and _HOME_OR_ROOT.match(arg_text):  # fmt: skip
+            self.hit(node, "destructive", f"{callee}() of the home directory or /")
+
+    def in_call(self, node: Node, calls: frozenset[str]) -> bool:
+        """The literal is an argument (a few levels down) of one of `calls`, or bound to a name
+        that's passed to one."""
+        current = node
+        for _ in range(5):
+            parent = current.parent
+            if parent is None:
+                return False
+            current = parent
+            if current.type in ("call_expression", "new_expression"):
+                if _callee(current).rsplit(".", 1)[-1] in calls:
+                    return True
+            elif current.type == "variable_declarator":
+                return _text(current.child_by_field_name("name")) in self.executed
+        return False
+
+    def in_write(self, node: Node) -> bool:
+        """The literal is part of a call that writes a file, or bound to a name that one does."""
+        current = node
+        for _ in range(7):
+            parent = current.parent
+            if parent is None:
+                return False
+            current = parent
+            if current.type == "call_expression":
+                if _callee(current).rsplit(".", 1)[-1] in patterns.WRITE_CALLS:
+                    return True
+            elif current.type == "variable_declarator":
+                name = _text(current.child_by_field_name("name"))
+                return name in self.written
+        return False
 
     def env_enumeration(self, node: Node, how: str) -> None:
         context = _text(_statement(node))[:1000]
@@ -146,12 +206,22 @@ class _Analyzer:
     def string(self, node: Node) -> None:
         # Template literals: judge the literal parts (`https://webhook.site/${id}` still counts).
         text = _text(node)[1:-1]
-        if path := patterns.sensitive_path(text):
-            self.hit(node, "sensitive_file", f"names {path}")
-        if url := patterns.exfil_host(text):
-            self.hit(node, "exfil_host", f"hardcoded {url}")
-        if patterns.HEADER_RECIPIENT.search(text):
-            self.hit(node, "hardcoded_recipient", "a Bcc/Cc header with a fixed address")
+        for kind, detail in patterns.string_hits(text):
+            if kind not in patterns.NEEDS_EXEC or self.in_call(node, patterns.EXEC_CALLS):
+                self.hit(node, kind, detail)
+        if (found := patterns.written_path_kind(text)) and self.in_write(node):
+            kind, detail = found
+            if kind == "client_config" and self.sets_approval:
+                detail += ", in code that sets auto-approve"
+            self.hit(node, kind, detail)
+
+    def finish(self, source: str) -> None:
+        if self.shells and _SOCKET.search(source):
+            self.hit(self.shells[0], "reverse_shell", "spawns a shell in a file that opens sockets")
+        if len(_OBFUSCATOR.findall(source[:2_000_000])) >= OBFUSCATED_NAMES:
+            detail = "javascript-obfuscator output (_0x... names)"
+            self.hits.append(SourceHit(kind="obfuscated", file=self.path, line=1, code="",
+                                       detail=detail))  # fmt: skip
 
 
 def analyze(path: str, source: bytes) -> list[SourceHit]:
@@ -162,4 +232,5 @@ def analyze(path: str, source: bytes) -> list[SourceHit]:
     analyzer = _Analyzer(path, source)
     for node in _walk(tree.root_node):
         analyzer.visit(node)
+    analyzer.finish(source.decode("utf-8", "replace"))
     return analyzer.hits

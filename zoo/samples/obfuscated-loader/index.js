@@ -1,0 +1,66 @@
+// javascript-obfuscator-style names around an eval of decoded code. Never reachable:
+// load() returns first and nothing calls it; the sample is never launched.
+var _0x1a2b=function(){return '_0x1a2b';};
+var _0x1a2c=function(){return '_0x1a2c';};
+var _0x1a2d=function(){return '_0x1a2d';};
+var _0x1a2e=function(){return '_0x1a2e';};
+var _0x1a2f=function(){return '_0x1a2f';};
+var _0x1a30=function(){return '_0x1a30';};
+var _0x1a31=function(){return '_0x1a31';};
+var _0x1a32=function(){return '_0x1a32';};
+var _0x1a33=function(){return '_0x1a33';};
+var _0x1a34=function(){return '_0x1a34';};
+var _0x1a35=function(){return '_0x1a35';};
+var _0x1a36=function(){return '_0x1a36';};
+var _0x1a37=function(){return '_0x1a37';};
+var _0x1a38=function(){return '_0x1a38';};
+var _0x1a39=function(){return '_0x1a39';};
+var _0x1a3a=function(){return '_0x1a3a';};
+var _0x1a3b=function(){return '_0x1a3b';};
+var _0x1a3c=function(){return '_0x1a3c';};
+var _0x1a3d=function(){return '_0x1a3d';};
+var _0x1a3e=function(){return '_0x1a3e';};
+var _0x1a3f=function(){return '_0x1a3f';};
+var _0x1a40=function(){return '_0x1a40';};
+var _0x1a41=function(){return '_0x1a41';};
+var _0x1a42=function(){return '_0x1a42';};
+var _0x1a43=function(){return '_0x1a43';};
+var _0x1a44=function(){return '_0x1a44';};
+var _0x1a45=function(){return '_0x1a45';};
+var _0x1a46=function(){return '_0x1a46';};
+var _0x1a47=function(){return '_0x1a47';};
+var _0x1a48=function(){return '_0x1a48';};
+var _0x1a49=function(){return '_0x1a49';};
+var _0x1a4a=function(){return '_0x1a4a';};
+var _0x1a4b=function(){return '_0x1a4b';};
+var _0x1a4c=function(){return '_0x1a4c';};
+var _0x1a4d=function(){return '_0x1a4d';};
+var _0x1a4e=function(){return '_0x1a4e';};
+var _0x1a4f=function(){return '_0x1a4f';};
+var _0x1a50=function(){return '_0x1a50';};
+var _0x1a51=function(){return '_0x1a51';};
+var _0x1a52=function(){return '_0x1a52';};
+var _0x1a53=function(){return '_0x1a53';};
+var _0x1a54=function(){return '_0x1a54';};
+var _0x1a55=function(){return '_0x1a55';};
+var _0x1a56=function(){return '_0x1a56';};
+var _0x1a57=function(){return '_0x1a57';};
+var _0x1a58=function(){return '_0x1a58';};
+var _0x1a59=function(){return '_0x1a59';};
+var _0x1a5a=function(){return '_0x1a5a';};
+var _0x1a5b=function(){return '_0x1a5b';};
+var _0x1a5c=function(){return '_0x1a5c';};
+var _0x1a5d=function(){return '_0x1a5d';};
+var _0x1a5e=function(){return '_0x1a5e';};
+var _0x1a5f=function(){return '_0x1a5f';};
+var _0x1a60=function(){return '_0x1a60';};
+var _0x1a61=function(){return '_0x1a61';};
+var _0x1a62=function(){return '_0x1a62';};
+var _0x1a63=function(){return '_0x1a63';};
+var _0x1a64=function(){return '_0x1a64';};
+var _0x1a65=function(){return '_0x1a65';};
+var _0x1a66=function(){return '_0x1a66';};
+export function load(blob) {
+  return; // zoo sample: never runs
+  eval(atob(blob));
+}

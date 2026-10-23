@@ -1,0 +1,5 @@
+title: Injection in the server's initialize instructions
+attack: tool-poisoning
+servers:
+  notes: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+expect: [MCP-TP-003, MCP-TP-005]

@@ -262,7 +262,7 @@ humans don't look.
 ### 5.5 Implementation vulnerabilities — source analysis (`MCP-SRC`)
 Only when source is available (local path, git, or unpacked npm/PyPI tarball).
 
-Built first (MCP-SRC-001..005, see RULES.md): hidden-behavior detectors, because they close the gap no
+Built first (MCP-SRC-001..010, see RULES.md): hidden-behavior detectors, because they close the gap no
 metadata rule can (postmark-mcp's BCC). `mcpiranha.source` reads local scripts and, online, the release's
 tarball/wheel in memory after checking its hash; Python via `ast`, JS/TS via tree-sitter (no Semgrep yet). Hits
 are stored on the snapshot (`SourceTree.hits`) so rescans stay offline. Taint analysis below is next.

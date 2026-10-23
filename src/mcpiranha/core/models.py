@@ -175,6 +175,12 @@ SourceHitKind = Literal[
     "sensitive_file",  # a literal path to credentials (~/.ssh, ~/.aws/credentials, ...)
     "dynamic_code",  # eval/exec of decoded or downloaded code
     "exfil_host",  # a literal URL on a request-catcher / webhook / tunnel service
+    "reverse_shell",  # /dev/tcp, nc -e, a shell wired to a socket
+    "miner",  # mining pools, xmrig
+    "persistence",  # writes shell profiles, LaunchAgents, cron, git hooks
+    "client_config",  # writes another MCP client's config
+    "destructive",  # rm -rf ~, rmtree(home)
+    "obfuscated",  # javascript-obfuscator / PyArmor output
 ]
 
 
@@ -186,6 +192,17 @@ class SourceHit(StrictModel):
     line: int
     code: str  # the source line (trimmed)
     detail: str
+
+
+class FetchedContent(StrictModel):
+    """Text a server sends besides its definitions, read while listing: prompt bodies
+    (prompts/get), resource contents (resources/read), log notifications, and the text of
+    requests it sent the client. Kept apart from the definitions: it may change legitimately,
+    so it's scanned but not locked."""
+
+    kind: Literal["prompt", "resource", "log", "sampling", "elicitation"]
+    ref: str  # prompt name, resource URI, logger name, or the request kind
+    text: str
 
 
 class SourceTree(StrictModel):
@@ -251,6 +268,9 @@ class DynamicObservation(StrictModel):
         "process_spawn",
         "tools_changed",  # tool list differed between two tools/list calls, or list_changed sent
         "auth_not_required",  # a remote server answered without any credentials
+        "sampling_request",  # the server asked the client's model to generate text
+        "roots_request",  # the server asked for the client's roots (workspace paths)
+        "elicitation_request",  # the server asked the user for input
     ]
     phase: Literal["startup", "listing", "invocation"]
     detail: str
@@ -281,6 +301,7 @@ class ServerSnapshot(StrictModel):
     source: SourceTree | None = None
     package: PackageMeta | None = None
     observations: list[DynamicObservation] = []
+    content: list[FetchedContent] = []
 
     def hashes(self) -> Hashes:
         """Computed on demand rather than stored, so it can never go stale."""

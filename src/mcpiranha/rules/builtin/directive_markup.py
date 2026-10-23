@@ -17,13 +17,16 @@ from mcpiranha.rules.builtin.sensitive_paths import is_suspicious
 from mcpiranha.rules.registry import register
 
 _I = re.IGNORECASE
+# Only real attributes after the tag name: `<system role="x">` is a tag, `<admin login>` and
+# `<secret:stripe-key>` are placeholders in documentation (calibration: resource contents).
+_ATTRS = r"""(\s+[\w-]+\s*=\s*("[^"]*"|'[^']*'|[^\s<>]+))*\s*/?>"""
 
 # (pattern, severity, label)
 _MARKUP: tuple[tuple[re.Pattern[str], Severity, str], ...] = (
-    (re.compile(r"<\s*/?\s*(important|system|secret|hidden|override|admin|critical|urgent)\b"
-                r"[^<>]{0,80}>", _I), Severity.HIGH, "authority tag"),
-    (re.compile(r"<\s*/?\s*(instructions?|assistant|developer|system[_-]?prompt)\b[^<>]{0,80}>",
-                _I), Severity.MEDIUM, "instruction tag"),
+    (re.compile(r"<\s*/?\s*(important|system|secret|hidden|override|admin|critical|urgent)"
+                + _ATTRS, _I), Severity.HIGH, "authority tag"),
+    (re.compile(r"<\s*/?\s*(instructions?|assistant|developer|system[_-]?prompt)" + _ATTRS, _I),
+     Severity.MEDIUM, "instruction tag"),
     (re.compile(r"\[/?(inst|sys)\]", _I), Severity.HIGH, "Llama instruction marker"),
     (re.compile(r"<<\s*/?\s*sys\s*>>", _I), Severity.HIGH, "Llama system marker"),
     (re.compile(r"<\|\s*(im_start|im_end|system|user|assistant|endoftext|eot_id|start_header_id|"

@@ -80,9 +80,21 @@ extracted or installed). Python is parsed with `ast`, JavaScript/TypeScript (bun
 minified output included) with tree-sitter. The MCP-SRC rules look for malice behind honest
 metadata: **SRC-001** a fixed address added as Bcc/Cc (how postmark-mcp copied every email),
 **SRC-002** collecting secrets from the environment, **SRC-003** credential paths in code that
-also has a way out, **SRC-004** running decoded or downloaded code, **SRC-005** a hardcoded
-request catcher, tunnel or Discord webhook. Taint analysis of tool handlers (command injection,
-path traversal, SSRF) is next.
+also has a way out, **SRC-004** running decoded, downloaded or obfuscated code, **SRC-005** a
+hardcoded request catcher, tunnel or Discord webhook, **SRC-006** reverse shells, **SRC-007**
+miners, **SRC-008** persistence (writing shell profiles, LaunchAgents, cron), **SRC-009** writing
+MCP client configs, **SRC-010** wipers. Command strings only count when executed and config paths
+only when written, since deny-lists and installers are full of both. Taint analysis of tool
+handlers (command injection, path traversal, SSRF) is next.
+
+### Server behavior during a session
+
+With `--connect`, mcpiranha also reads prompt bodies and static resource contents and keeps log
+notifications, so poisoning there is caught like poisoning in descriptions. It advertises
+sampling, elicitation and roots like a real client (over the classic protocol too, where servers
+can send such requests mid-call), declines every request, and reports a server that uses your
+model, maps your workspace (**DY-001**) or asks you for input, worst when it's a password or token
+(**DY-002**), while it was only being listed.
 
 ### Experimental classifier
 
@@ -154,10 +166,13 @@ publisher or provenance alarms, one package with 159 advisories, two yanked or d
 releases, and one registry config that runs a PyPI name nobody owns. The source rules read
 19,000 files across their releases with no findings.
 
-Attacks are tested against [the zoo](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/zoo/README.md): 21 safe-by-construction
-malicious servers and packages, including reconstructions of public incidents and hijacked or
-backdoored releases served from local registries. 20 are detected in full; the remaining gap,
-injection in a tool's output, needs tool calls (Phase 4).
+Attacks are tested against [the zoo](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/zoo/README.md): 42 safe-by-construction
+malicious servers, configs and packages, including reconstructions of public incidents and
+hijacked or backdoored releases served from local registries. They're organized by a
+[threat catalog](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/zoo/threats.yaml) of 60 ways an MCP server can act maliciously, which a test
+keeps in sync with the rules: 51 are detected, 2 partly, and 7 are tracked gaps (tool output,
+dependency code, repository diffs, handler taint analysis, and runtime egress, file access and
+time bombs).
 
 ## Development
 

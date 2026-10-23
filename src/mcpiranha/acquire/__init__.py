@@ -9,7 +9,12 @@ from dataclasses import dataclass
 
 import anyio
 
-from mcpiranha.acquire.listing import Enumeration, EnumerationError, enumerate_server
+from mcpiranha.acquire.listing import (
+    Enumeration,
+    EnumerationError,
+    enumerate_server,
+    observe_classic,
+)
 from mcpiranha.acquire.oauth import OAuthError, OpenUrl
 from mcpiranha.acquire.sandbox import Prepared, Sandbox, SandboxError, prepare
 from mcpiranha.core.models import DynamicObservation, ServerSnapshot
@@ -65,6 +70,21 @@ async def _enumerate_with_fallback(prepared: Prepared, options: ConnectOptions) 
                                    ) from second  # fmt: skip
 
 
+CLASSIC_UNTIL = "2026-07-28"  # the first protocol version without mid-request server requests
+
+
+async def _observe_classic(prepared: Prepared, options: ConnectOptions, found: Enumeration) -> None:
+    """A second, classic-protocol session to see what the server sends clients that allow it
+    (sampling, elicitation, roots, logs). Best effort: a server that won't speak it is fine."""
+    try:
+        extra = await observe_classic(prepared.connect(), timeout=options.timeout)
+    except Exception:  # the main listing already succeeded
+        return
+    seen = {(c.kind, c.ref, c.text) for c in found.content}
+    found.content += [c for c in extra.content if (c.kind, c.ref, c.text) not in seen]
+    found.observations += extra.observations
+
+
 async def connect_one(
     snapshot: ServerSnapshot,
     options: ConnectOptions,
@@ -90,6 +110,8 @@ async def connect_one(
             progress(snapshot, f"connecting ({prepared.label})")
         try:
             found = await _enumerate_with_fallback(prepared, options)
+            if found.protocol_version >= CLASSIC_UNTIL and (found.prompts or found.resources):
+                await _observe_classic(prepared, options, found)
         except EnumerationError as exc:
             errlog.flush()
             errlog.seek(0)
@@ -116,6 +138,7 @@ async def connect_one(
             "prompts": found.prompts,
             "resources": found.resources,
             "observations": observations,
+            "content": found.content,
             "tools_listed": True,
             "package": prepared.resolved or snapshot.package,
         }

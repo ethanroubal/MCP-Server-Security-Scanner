@@ -1,0 +1,6 @@
+title: Injection in a parameter description instead of the tool description
+attack: tool-poisoning
+source: https://www.cyberark.com/resources/threat-research-blog/poison-everywhere-no-output-from-your-mcp-server-is-safe
+servers:
+  translator: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+expect: [MCP-TP-004, MCP-TP-005]

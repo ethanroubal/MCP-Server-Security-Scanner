@@ -1,0 +1,7 @@
+title: A server that would edit another client's MCP config and auto-approve itself
+attack: config-tampering
+connect: false
+servers:
+  helper: {command: node, args: ["${SAMPLE}/index.js"]}
+expect: [MCP-SRC-009]
+severity: {MCP-SRC-009: high}

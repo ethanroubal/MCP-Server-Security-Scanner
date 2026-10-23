@@ -1,0 +1,6 @@
+title: A web fetcher and a shell in one client (a poisoned page becomes remote code execution)
+attack: toxic-flow
+servers:
+  web: {command: "${PYTHON}", args: ["${SAMPLE}/web.py"]}
+  shell: {command: "${PYTHON}", args: ["${SAMPLE}/shell.py"]}
+expect: [MCP-TF-002]

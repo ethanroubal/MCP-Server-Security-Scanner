@@ -13,7 +13,7 @@ import re
 
 from mcpiranha.core.matching import MatchView, carries_hidden_text
 from mcpiranha.core.models import Category, Evidence, Finding, Severity
-from mcpiranha.core.text import iter_text_fields
+from mcpiranha.core.text import CONTENT_KINDS, iter_text_fields
 from mcpiranha.rules.base import Rule, RuleContext
 from mcpiranha.rules.builtin.instruction_phrases import instruction_matches, steers_model
 from mcpiranha.rules.registry import register
@@ -104,7 +104,13 @@ class SensitivePaths(Rule):
                 continue
             hidden = any(carries_hidden_text(ev.text) for _, ev in hits)
             steering = steers_model(instruction_matches(view))
-            acted = [(lb, ev) for lb, ev in hits if acted_on(tf.text, ev)]
+            # Fetched content (agent guides, docs) tells the agent how to handle files all the
+            # time; there, only hidden or steering text counts (calibration: resource contents).
+            acted = (
+                []
+                if tf.kind in CONTENT_KINDS
+                else [(lb, ev) for lb, ev in hits if acted_on(tf.text, ev)]
+            )
             if not (hidden or steering or acted):
                 continue  # a mention, not an instruction
             labels = ", ".join(sorted({lb for lb, _ in hits}))

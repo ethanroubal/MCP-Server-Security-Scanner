@@ -1,0 +1,5 @@
+title: Injection in a prompt template's body, not its description
+attack: tool-poisoning
+servers:
+  code-review: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+expect: [MCP-TP-003, MCP-TP-004, MCP-TP-005]

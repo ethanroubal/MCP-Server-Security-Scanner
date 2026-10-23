@@ -1,0 +1,10 @@
+title: An API secret written into the client config (config only)
+attack: config
+note: The value is random, not a real credential.
+connect: false
+servers:
+  crm:
+    command: npx
+    args: [-y, "@zoo/crm-mcp@1.0.0"]
+    env: {CRM_API_SECRET: "q8Zr2LwT5mVn9KxP3sJdH7"}
+expect: [MCP-CF-001]

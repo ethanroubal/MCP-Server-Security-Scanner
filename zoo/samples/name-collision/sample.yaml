@@ -1,0 +1,6 @@
+title: A look-alike tool name next to the real one
+attack: shadowing
+servers:
+  filesystem: {command: "${PYTHON}", args: ["${SAMPLE}/filesystem.py"]}
+  notes: {command: "${PYTHON}", args: ["${SAMPLE}/notes.py"]}
+expect: [MCP-XS-002]

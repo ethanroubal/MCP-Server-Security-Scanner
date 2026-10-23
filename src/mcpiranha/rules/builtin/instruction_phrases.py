@@ -72,6 +72,9 @@ PHRASES: tuple[tuple[re.Pattern[str], int, str, bool], ...] = (
     (re.compile(r"\binclude\s+(the\s+|its\s+|their\s+)?(full\s+)?(output|contents?|results?|"
                 r"response)\s+(of|from|in)\b", _I), 1, "asks to relay data", False),
     (re.compile(r"\bsystem\s+prompt\b", _I), 1, "mentions the system prompt", False),
+    # "read ~/.ssh/id_rsa", "include the contents of ./config": with concealment, an attack
+    (re.compile(r"\b(read|cat|open|load|include|attach|append)\s+(the\s+)?(contents?\s+of\s+)?"
+                r"(~|\.{1,2}/|/)[\w./-]+", _I), 1, "asks to read a file", False),
 )  # fmt: skip
 
 THRESHOLD = 3

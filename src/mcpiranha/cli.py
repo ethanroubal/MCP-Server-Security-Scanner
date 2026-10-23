@@ -663,6 +663,8 @@ def bench(
                 _warn(f"{r.sample.name}: {error}")
             if r.skipped:
                 _warn(f"{r.sample.name}: skipped, {r.skipped}")
+            for weak in r.too_weak:
+                _warn(f"{r.sample.name}: severity too low: {weak}")
             if r.status == "gap-flagged":
                 _warn(f"{r.sample.name}: a known gap now gets findings; review it and move "
                       f"them to `expect` ({r.sample.gap})")  # fmt: skip
@@ -675,7 +677,23 @@ def bench(
         out.print(f"{passed}/{len(scored)} samples detected in full, {hit}/{expected} expected "
                   f"findings; {gaps} known gap(s) not yet detectable"
                   + (f"; {skipped} skipped." if skipped else "."))  # fmt: skip
+        if threats := bench_mod.load_threats(zoo):
+            _threat_summary(threats, {r.sample.name: r for r in results})
     raise typer.Exit(1 if any(r.status == "fail" for r in results) else 0)
+
+
+def _threat_summary(threats: list[bench_mod.Threat],
+                    results: dict[str, bench_mod.SampleResult]) -> None:  # fmt: skip
+    """How the threat catalog (zoo/threats.yaml) stands after this run."""
+    counts = {s: sum(t.status == s for t in threats) for s in ("detected", "partial", "gap")}
+    out.print(f"\nThreat catalog: {len(threats)} threats, {counts['detected']} detected, "
+              f"{counts['partial']} partly, {counts['gap']} not yet.")  # fmt: skip
+    for t in threats:
+        failing = [n for n in t.samples if n in results and results[n].status == "fail"]
+        if failing:
+            _warn(f"threat {t.id} is marked {t.status} but its samples fail: {', '.join(failing)}")
+        elif t.status != "detected":
+            out.print(Text(f"  {t.status:8} {t.id}: {t.gap}", style="dim"), soft_wrap=True)
 
 
 @app.command()

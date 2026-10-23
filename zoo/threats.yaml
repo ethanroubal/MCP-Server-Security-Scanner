@@ -1,0 +1,453 @@
+# Every way we know a malicious (or maliciously exploitable) MCP server can act, what detects
+# it, and what proves the detection works. tests/test_threat_coverage.py enforces it:
+#
+# - status `detected`: the rules fire on every listed test, and every test exists.
+# - status `partial`:  detected in some forms; `gap` says which forms aren't.
+# - status `gap`:      not detected yet; `gap` says why and what closes it. A zoo sample with
+#                      a matching `gap` keeps it tracked (bench flags it once something fires).
+# - every built-in rule appears in some entry and is exercised by some test.
+#
+# tests: zoo:<sample> (zoo/samples), fixture:<case> (fixtures/metadata), or
+#        test:<file>::<function> (a unit test that proves a scanner defense).
+# surface: what the attacker controls or where it shows up.
+
+# --- What the model reads (metadata) ------------------------------------------------------------
+
+- id: instruction-injection
+  title: Instructions to the model in a tool description (<IMPORTANT>, "before using this tool")
+  surface: metadata
+  status: detected
+  rules: [MCP-TP-003, MCP-TP-004]
+  tests: [zoo:tool-poisoning, fixture:poisoned-important]
+
+- id: credential-request
+  title: Description tells the model to read secrets or credential files
+  surface: metadata
+  status: detected
+  rules: [MCP-TP-005]
+  tests: [zoo:tool-poisoning, zoo:rug-pull, fixture:poisoned-important]
+
+- id: paraphrased-injection
+  title: Injection worded to avoid known phrases (no tags, no "ignore previous")
+  surface: metadata
+  status: partial
+  rules: [MCP-TP-004, MCP-TP-005]
+  tests: [zoo:paraphrased-override, fixture:reworded-attacks]
+  gap: >-
+    Phrase rules catch rewordings that still steer the model and name a target; free-form
+    rewording needs the experimental classifier or the BYO-LLM tier (Phase 2).
+
+- id: hidden-unicode
+  title: Instructions hidden in Unicode tags, zero-width, variation-selector or bidi characters
+  surface: metadata
+  status: detected
+  rules: [MCP-TP-001]
+  tests: [zoo:hidden-unicode, fixture:unicode-tag-smuggling, fixture:variation-selector-smuggling,
+          fixture:zero-width-in-schema, fixture:bidi-override]
+
+- id: terminal-escapes
+  title: ANSI escapes that hide or rewrite text a human reviews in a terminal
+  surface: metadata
+  status: detected
+  rules: [MCP-TP-002]
+  tests: [zoo:terminal-escapes, fixture:terminal-escape]
+
+- id: encoded-payload
+  title: Base64 / hex / escaped instructions the model decodes
+  surface: metadata
+  status: detected
+  rules: [MCP-TP-006]
+  tests: [zoo:encoded-payload, fixture:encoded-payload]
+
+- id: render-exfiltration
+  title: Markdown image or link whose URL carries conversation data
+  surface: metadata
+  status: detected
+  rules: [MCP-TP-007]
+  tests: [zoo:render-exfil, fixture:render-exfil]
+
+- id: padding-pushdown
+  title: Whitespace or filler that pushes instructions out of a reviewer's view
+  surface: metadata
+  status: detected
+  rules: [MCP-TP-008]
+  tests: [zoo:padding-pushdown, fixture:padding-pushdown]
+
+- id: exfiltration-parameter
+  title: A parameter shaped to carry stolen data (sidenote, context, notes)
+  surface: metadata
+  status: detected
+  rules: [MCP-TP-009]
+  tests: [zoo:tool-poisoning, zoo:hidden-unicode, fixture:poisoned-important]
+
+- id: schema-poisoning
+  title: Instructions in parameter descriptions, enum values or defaults instead of the description
+  surface: metadata
+  status: detected
+  rules: [MCP-TP-004, MCP-TP-005]
+  tests: [zoo:schema-poisoning]
+
+- id: server-instructions-poisoning
+  title: Injection in the server's `instructions` (sent at initialize, often added to the system prompt)
+  surface: metadata
+  status: detected
+  rules: [MCP-TP-003, MCP-TP-005]
+  tests: [zoo:instructions-poisoning]
+
+- id: prompt-template-poisoning
+  title: Injection in a prompt template's body (prompts/get), not its description
+  surface: metadata
+  status: detected
+  rules: [MCP-TP-003, MCP-TP-004, MCP-TP-005]
+  tests: [zoo:prompt-poisoning]
+
+- id: resource-content-poisoning
+  title: Injection in a resource's content (resources/read)
+  surface: metadata
+  status: detected
+  rules: [MCP-TP-004, MCP-TP-005]
+  tests: [zoo:resource-poisoning]
+
+- id: tool-output-poisoning
+  title: Injection in what a tool returns, only visible when it's called
+  surface: runtime
+  status: gap
+  tests: [zoo:poisoned-tool-output]
+  gap: Needs tool calls with synthetic inputs in the sandbox (Phase 4, --invoke).
+
+- id: description-behavior-mismatch
+  title: A tool that does something other than its description says, with nothing hidden
+  surface: source
+  status: partial
+  rules: [MCP-SRC-001, MCP-SRC-002, MCP-SRC-003]
+  tests: [zoo:postmark-bcc, zoo:startup-env-harvest, zoo:credential-stealer]
+  gap: >-
+    Specific hidden behaviors are detected in source; a general "weather tool that reads $HOME"
+    comparison needs the LLM tier or dynamic tracing (Phases 2 and 4).
+
+# --- Across servers --------------------------------------------------------------------------------
+
+- id: tool-shadowing
+  title: One server's metadata redirects how another server's tools are used
+  surface: metadata
+  status: detected
+  rules: [MCP-XS-001]
+  tests: [zoo:whatsapp-shadowing, fixture:cross-server-shadowing]
+
+- id: tool-name-collision
+  title: A tool named like another server's tool, to be called instead of it
+  surface: metadata
+  status: detected
+  rules: [MCP-XS-002]
+  tests: [zoo:name-collision, fixture:tool-name-collision]
+
+- id: typosquat
+  title: Package name imitating a well-known MCP server
+  surface: supply-chain
+  status: detected
+  rules: [MCP-XS-003]
+  tests: [zoo:typosquat-config, fixture:typosquat-package]
+
+- id: lethal-trifecta
+  title: Untrusted input, private data and a way out in one agent (often across servers)
+  surface: config
+  status: detected
+  rules: [MCP-TF-001]
+  tests: [zoo:cross-server-trifecta, zoo:github-issue-leak, zoo:whatsapp-shadowing,
+          fixture:toxic-trifecta]
+
+- id: injection-to-execution
+  title: Untrusted input next to code execution or destructive tools
+  surface: config
+  status: detected
+  rules: [MCP-TF-002]
+  tests: [zoo:injection-to-exec, fixture:toxic-exec]
+
+# --- Integrity over time (rug pulls) ------------------------------------------------------------
+
+- id: in-session-rug-pull
+  title: Tools change after the first listing (sleeper, list_changed)
+  surface: session
+  status: detected
+  rules: [MCP-RP-002]
+  tests: [zoo:rug-pull, zoo:whatsapp-shadowing]
+
+- id: rug-pull-after-approval
+  title: A server changes its tools or launch config after it was reviewed and locked
+  surface: session
+  status: detected
+  rules: [MCP-RP-001]
+  tests: [zoo:rug-pull-after-lock, test:tests/test_connect.py::test_lock_and_verify_with_connect]
+
+- id: floating-version
+  title: Unpinned package, so a new (possibly hijacked) release runs on next launch
+  surface: config
+  status: detected
+  rules: [MCP-RP-003]
+  tests: [zoo:typosquat-config, fixture:config-floating-secret]
+
+# --- Configuration and transport -------------------------------------------------------------
+
+- id: plaintext-secret
+  title: Real secret written into a client config (readable by every server and tool)
+  surface: config
+  status: detected
+  rules: [MCP-CF-001]
+  tests: [zoo:plaintext-secret, fixture:config-secrets-variety]
+
+- id: plain-http-remote
+  title: Remote server reached over unencrypted HTTP
+  surface: config
+  status: detected
+  rules: [MCP-CF-002]
+  tests: [fixture:remote-plain-http]
+
+- id: remote-without-auth
+  title: Remote server that serves tools to anyone
+  surface: session
+  status: detected
+  rules: [MCP-CF-003]
+  tests: [test:tests/test_connect.py::test_remote_server_without_auth]
+
+- id: dangerous-launcher
+  title: Launch command that pipes downloads to a shell, runs privileged or mounts the host
+  surface: config
+  status: detected
+  rules: [MCP-CF-004]
+  tests: [zoo:dangerous-launcher, fixture:dangerous-launchers]
+
+- id: broad-filesystem
+  title: Filesystem server given the home or root directory
+  surface: config
+  status: detected
+  rules: [MCP-CF-005]
+  tests: [fixture:broad-filesystem]
+
+- id: auto-approve
+  title: Client runs tools without asking, so an injected chain completes silently
+  surface: config
+  status: detected
+  rules: [MCP-CF-006, MCP-TF-001]
+  tests: [zoo:auto-approved-trifecta, fixture:auto-approve]
+
+# --- Server-initiated requests during a session ----------------------------------------------
+
+- id: sampling-abuse
+  title: Server asks the client's model to generate text (spends the user's model, probes context)
+  surface: session
+  status: detected
+  rules: [MCP-DY-001]
+  tests: [zoo:sampling-request]
+
+- id: roots-probing
+  title: Server asks for the client's roots (workspace paths) before any tool runs
+  surface: session
+  status: detected
+  rules: [MCP-DY-001]
+  tests: [zoo:sampling-request]
+
+- id: elicitation-phishing
+  title: Server asks the user for passwords, tokens or keys through elicitation
+  surface: session
+  status: detected
+  rules: [MCP-DY-002]
+  tests: [zoo:elicitation-phishing]
+
+- id: log-message-injection
+  title: Injection in log notifications the client may show or forward
+  surface: session
+  status: detected
+  rules: [MCP-TP-004, MCP-TP-005]
+  tests: [zoo:log-injection]
+
+# --- Supply chain ------------------------------------------------------------------------------
+
+- id: known-malicious-package
+  title: Package reported as malware (OSV MAL-), even after the registry took it down
+  surface: supply-chain
+  status: detected
+  rules: [MCP-SC-001]
+  tests: [zoo:sc-known-malicious]
+
+- id: known-vulnerable-package
+  title: Release with a published vulnerability
+  surface: supply-chain
+  status: detected
+  rules: [MCP-SC-001]
+  tests: [zoo:sc-known-vulnerable]
+
+- id: install-script
+  title: Code that runs at install time (npm lifecycle scripts, sdist setup.py)
+  surface: supply-chain
+  status: detected
+  rules: [MCP-SC-002]
+  tests: [zoo:sc-install-script-added, zoo:sc-sdist-only]
+
+- id: provenance-dropped
+  title: Release published outside the project's CI (lost provenance, other owner's repo)
+  surface: supply-chain
+  status: detected
+  rules: [MCP-SC-003]
+  tests: [zoo:sc-provenance-dropped]
+
+- id: new-package
+  title: Package only days old
+  surface: supply-chain
+  status: detected
+  rules: [MCP-SC-004]
+  tests: [zoo:sc-install-script-added]
+
+- id: account-takeover
+  title: Release by an npm account that never published the package before
+  surface: supply-chain
+  status: detected
+  rules: [MCP-SC-005]
+  tests: [zoo:sc-install-script-added]
+
+- id: unclaimed-or-removed-name
+  title: Config runs a name missing from the registry (dependency confusion), or a yanked release
+  surface: supply-chain
+  status: detected
+  rules: [MCP-SC-006]
+  tests: [zoo:sc-known-malicious]
+
+- id: malicious-dependency
+  title: Malicious code in a dependency rather than the server's own package
+  surface: supply-chain
+  status: gap
+  gap: Only the top-level package is analyzed; dependency trees are next (Phase 3).
+
+- id: repository-mismatch
+  title: Published package contains code that isn't in its linked repository
+  surface: supply-chain
+  status: gap
+  gap: Needs a tarball-vs-repository diff (Phase 3).
+
+# --- Hidden behavior in the code ----------------------------------------------------------------
+
+- id: hidden-recipient
+  title: Code quietly copies messages to a fixed address (postmark-mcp)
+  surface: source
+  status: detected
+  rules: [MCP-SRC-001]
+  tests: [zoo:postmark-bcc, zoo:sc-backdoored-mailer]
+
+- id: environment-harvest
+  title: Code collects secrets from environment variables
+  surface: source
+  status: detected
+  rules: [MCP-SRC-002]
+  tests: [zoo:startup-env-harvest]
+
+- id: credential-theft
+  title: Code reads SSH keys, cloud credentials, browser logins or wallets and has a way out
+  surface: source
+  status: detected
+  rules: [MCP-SRC-003]
+  tests: [zoo:credential-stealer]
+
+- id: hidden-code
+  title: Code runs decoded, downloaded or obfuscated code
+  surface: source
+  status: detected
+  rules: [MCP-SRC-004]
+  tests: [zoo:sc-hidden-payload, zoo:obfuscated-loader]
+
+- id: exfiltration-endpoint
+  title: Hardcoded request catcher, tunnel or Discord webhook
+  surface: source
+  status: detected
+  rules: [MCP-SRC-005]
+  tests: [zoo:credential-stealer]
+
+- id: remote-access
+  title: Reverse shell or remote-access backdoor
+  surface: source
+  status: detected
+  rules: [MCP-SRC-006]
+  tests: [zoo:reverse-shell]
+
+- id: cryptominer
+  title: Cryptocurrency miner (mining pools, miner binaries)
+  surface: source
+  status: detected
+  rules: [MCP-SRC-007]
+  tests: [zoo:cryptominer]
+
+- id: persistence
+  title: Code installs itself to run later (shell profiles, cron, LaunchAgents, systemd, git hooks)
+  surface: source
+  status: detected
+  rules: [MCP-SRC-008]
+  tests: [zoo:persistence]
+
+- id: client-config-tampering
+  title: Code edits other MCP clients' configs (adds servers, turns on auto-approve)
+  surface: source
+  status: detected
+  rules: [MCP-SRC-009]
+  tests: [zoo:client-config-tamper]
+
+- id: destructive-payload
+  title: Code that wipes the home directory or the disk
+  surface: source
+  status: detected
+  rules: [MCP-SRC-010]
+  tests: [zoo:wiper]
+
+- id: handler-injection
+  title: Tool arguments reach a shell, file path, URL or SQL query unchecked (exploitable server)
+  surface: source
+  status: gap
+  gap: Taint analysis from tool handler arguments to sinks (Phase 3, next).
+
+# --- Runtime behavior ------------------------------------------------------------------------------
+
+- id: runtime-egress
+  title: Server phones home or exfiltrates over the network at startup or when called
+  surface: runtime
+  status: gap
+  gap: >-
+    The sandbox blocks the network (--network none) but doesn't report attempts; egress
+    monitoring with honeytokens is Phase 4.
+
+- id: runtime-file-access
+  title: Server reads files it has no reason to, at startup or when called
+  surface: runtime
+  status: gap
+  gap: Needs syscall tracing in the sandbox (Phase 4).
+
+- id: conditional-trigger
+  title: Malice that waits for a date, a host, a user or a number of calls
+  surface: runtime
+  status: gap
+  gap: Needs tool calls over time and tracing (Phase 4); source rules may still see the payload.
+
+# --- Attacks on the scanner itself ------------------------------------------------------------
+
+- id: malicious-authorization-url
+  title: Server's OAuth metadata makes the client open a command or file URL (CVE-2025-6514)
+  surface: scanner
+  status: detected
+  tests: [test:tests/test_connect.py::test_authorization_url_from_server_metadata_is_checked]
+
+- id: sandbox-escape-at-install
+  title: Package install scripts, network or host access during a --connect scan
+  surface: scanner
+  status: detected
+  tests: [test:tests/test_sandbox.py::test_npm_server_runs_offline_and_unprivileged,
+          test:tests/test_sandbox.py::test_pypi_server_installs_wheels_only,
+          test:tests/test_sandbox.py::test_package_bin_cannot_escape]
+
+- id: hostile-archive
+  title: Package archive with path traversal, huge files or a zip bomb
+  surface: scanner
+  status: detected
+  tests: [test:tests/test_source.py::test_archives_are_read_in_memory_with_their_paths,
+          test:tests/test_source.py::test_oversized_files_are_skipped]
+
+- id: report-injection
+  title: Server text with escape sequences or hidden characters aimed at the scanner's own output
+  surface: scanner
+  status: detected
+  tests: [test:tests/test_text.py::test_reveal_neutralizes_terminal_escapes_and_invisibles]

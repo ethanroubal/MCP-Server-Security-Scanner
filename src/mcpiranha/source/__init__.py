@@ -37,6 +37,7 @@ JS = (".js", ".mjs", ".cjs", ".ts", ".mts", ".cts", ".tsx", ".jsx")
 MAX_ARCHIVE = 50 * 1024 * 1024
 MAX_FILE = 5 * 1024 * 1024
 MAX_TOTAL = 80 * 1024 * 1024
+MAX_UNPACKED = 1024 * 1024 * 1024  # stop reading an archive (bombs: tiny download, huge content)
 MAX_HITS = 100
 _PROJECT_MARKERS = ("pyproject.toml", "setup.py", "package.json", ".git")
 _SKIP_DIRS = frozenset({"node_modules", ".venv", "venv", ".git", "__pycache__", ".tox", "dist-info",
@@ -160,6 +161,9 @@ def archive_files(data: bytes, name: str) -> Iterator[tuple[str, bytes]]:
     total = 0
     if name.endswith((".whl", ".zip")):
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            if sum(i.file_size for i in archive.infolist()) > MAX_UNPACKED:
+                yield "(archive)", b"x" * (MAX_FILE + 1)  # reported as skipped
+                return
             for info in archive.infolist():
                 if info.filename.endswith(PY + JS) and not _skip(info.filename):
                     if info.file_size > MAX_FILE:
@@ -171,7 +175,11 @@ def archive_files(data: bytes, name: str) -> Iterator[tuple[str, bytes]]:
                     yield info.filename, archive.read(info)
         return
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as archive:
+        unpacked = 0
         for member in archive:
+            unpacked += member.size
+            if unpacked > MAX_UNPACKED:
+                return
             if not member.isfile() or not member.name.endswith(PY + JS):
                 continue
             path = member.name.split("/", 1)[-1]  # "package/..." (npm), "name-1.0/..." (sdist)

@@ -1,0 +1,7 @@
+title: A wiper behind a cache-clearing tool (source only, never launched)
+attack: destructive
+connect: false
+servers:
+  cleanup: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+expect: [MCP-SRC-010]
+severity: {MCP-SRC-010: critical}

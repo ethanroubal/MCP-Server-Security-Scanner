@@ -1,0 +1,5 @@
+title: Instruction hidden after hundreds of spaces
+attack: hidden-text
+servers:
+  calendar: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+expect: [MCP-TP-008]

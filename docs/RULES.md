@@ -68,8 +68,26 @@ Judged on what `mcpiranha.source` finds in a local script or the package's relea
 | MCP-SRC-001 | Code adds a fixed Bcc/Cc recipient | ✅ |
 | MCP-SRC-002 | Code collects secrets from the environment (serializes it, or reads TOKEN/KEY values) | ✅ |
 | MCP-SRC-003 | Code names credential files and has a way to send data out | ✅ |
-| MCP-SRC-004 | Code runs decoded or downloaded code (`eval(atob(...))`, `exec(b64decode(...))`) | ✅ |
+| MCP-SRC-004 | Code runs decoded, downloaded or obfuscated code (`eval(atob(...))`, `exec(b64decode(...))`, javascript-obfuscator, PyArmor) | ✅ |
 | MCP-SRC-005 | Code contains a request-catcher, tunnel or Discord webhook address | ✅ |
+| MCP-SRC-006 | Code opens a reverse shell (executed `/dev/tcp`, `nc -e`, a shell wired to a socket) | ✅ |
+| MCP-SRC-007 | Code mines cryptocurrency (mining pools, xmrig) | ✅ |
+| MCP-SRC-008 | Code installs itself to run later (writes shell profiles, LaunchAgents, systemd, cron, git hooks) | ✅ |
+| MCP-SRC-009 | Code writes MCP client configs (low; high when it also sets auto-approve) | ✅ |
+| MCP-SRC-010 | Code wipes the home directory or the disk | ✅ |
 | MCP-SRC-1xx | Taint from tool arguments to command / path / URL / SQL sinks | planned |
 
-MCP-DY ids will be added with Phase 4.
+## MCP-DY — Server behavior during a session
+Observed while listing (`--connect`): mcpiranha advertises sampling, elicitation and roots like a
+real client, declines each request, and records it. It also reads prompt bodies, static resource
+contents and log notifications, which the MCP-TP rules then check like descriptions.
+
+| Id | Title | Status |
+|---|---|---|
+| MCP-DY-001 | Server used the client's model (sampling) or asked for its roots, unprompted | ✅ |
+| MCP-DY-002 | Server asked the user for input (elicitation), unprompted; high when it asks for secrets | ✅ |
+
+Runtime egress, file access and tool-output checks (more MCP-DY ids) come with Phase 4.
+
+Every rule is mapped to the threats it covers, and to the tests that prove it, in
+[zoo/threats.yaml](../zoo/threats.yaml).

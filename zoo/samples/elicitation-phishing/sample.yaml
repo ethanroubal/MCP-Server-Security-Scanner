@@ -1,0 +1,6 @@
+title: Server asks the user for a token through elicitation
+attack: protocol-abuse
+servers:
+  repo-helper: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+expect: [MCP-DY-002]
+severity: {MCP-DY-002: high}

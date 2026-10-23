@@ -1,0 +1,6 @@
+title: Obfuscated JavaScript that evals a decoded payload (source only, never launched)
+attack: malicious-code
+connect: false
+servers:
+  loader: {command: node, args: ["${SAMPLE}/index.js"]}
+expect: [MCP-SRC-004]

@@ -1,0 +1,7 @@
+title: A server that changes its tools after it was locked (rug pull between sessions)
+attack: rug-pull
+before:  # locked first, as `mcpiranha lock --connect` would
+  weather: {command: "${PYTHON}", args: ["${SAMPLE}/server.py", "1"]}
+servers:
+  weather: {command: "${PYTHON}", args: ["${SAMPLE}/server.py", "2"]}
+expect: [MCP-RP-001, MCP-TP-005]

@@ -12,6 +12,16 @@ metadata, the case no metadata rule can see:
 - SRC-004: running decoded or downloaded code (eval(atob(...)), exec(b64decode(...))). Not
   `curl | sh` strings: calibration found them only in install instructions and deny-lists.
 - SRC-005: a hardcoded request catcher, tunnel or Discord webhook as a destination.
+- SRC-006: a reverse shell (bash -i >& /dev/tcp, nc -e, a shell wired to a socket).
+- SRC-007: a cryptominer (mining pools, xmrig).
+- SRC-008: persistence: writing shell profiles, LaunchAgents, systemd units, cron, git hooks.
+- SRC-009: writing MCP client configs; high when the code also sets auto-approve (installers
+  register servers, which is low).
+- SRC-010: wiping the home directory or the disk.
+
+Paths in SRC-008 and SRC-009 only count when the code writes them (reading ~/.zshrc or an MCP
+config is common), and command strings (reverse shells, wipes, cron installs) only when they're
+executed: the analyzers check the enclosing call, or a name such a call is given.
 
 One finding per rule and server, citing up to five places.
 """
@@ -113,10 +123,10 @@ class CredentialPaths(_SourceRule):
 @register
 class HiddenCode(_SourceRule):
     id = "MCP-SRC-004"
-    title = "Code runs decoded or downloaded code"
+    title = "Code runs decoded, downloaded or obfuscated code"
     default_severity = Severity.HIGH
-    kinds = ("dynamic_code",)
-    what = "The code runs code it decodes or downloads"
+    kinds = ("dynamic_code", "obfuscated")
+    what = "The code runs code it decodes or downloads, or is obfuscated"
     remediation = (
         "Code that only exists after decoding or downloading can't be reviewed, and can change "
         "without a release. Don't run the server until you know what it executes."
@@ -134,3 +144,73 @@ class ExfilEndpoint(_SourceRule):
         "Request catchers, tunnels and webhook URLs are where stolen data is sent; a server "
         "that posts to your own webhook takes its URL as configuration, not as a literal."
     )
+
+
+@register
+class RemoteAccess(_SourceRule):
+    id = "MCP-SRC-006"
+    title = "Code opens a reverse shell"
+    default_severity = Severity.CRITICAL
+    kinds = ("reverse_shell",)
+    what = "The code connects a shell to the network"
+    confidence = Confidence.HIGH
+    remediation = (
+        "A reverse shell hands your machine to whoever is listening. Don't run the server; if "
+        "it ran, treat the machine as compromised."
+    )
+
+
+@register
+class CryptoMiner(_SourceRule):
+    id = "MCP-SRC-007"
+    title = "Code mines cryptocurrency"
+    default_severity = Severity.HIGH
+    kinds = ("miner",)
+    what = "The code refers to mining pools or miners"
+    remediation = "No MCP server needs a mining pool. Remove it and check for running miners."
+
+
+@register
+class Persistence(_SourceRule):
+    id = "MCP-SRC-008"
+    title = "Code installs itself to run later"
+    default_severity = Severity.MEDIUM
+    kinds = ("persistence",)
+    what = "The code writes files that run code later (shell profiles, autostart, cron, hooks)"
+    remediation = (
+        "Writing ~/.bashrc, LaunchAgents, cron or git hooks keeps code running after the server "
+        "is removed. Check those files if it ran, and remove what it added."
+    )
+
+
+@register
+class ClientConfigTampering(_SourceRule):
+    id = "MCP-SRC-009"
+    title = "Code writes MCP client configs"
+    default_severity = Severity.HIGH
+    kinds = ("client_config",)
+    what = "The code writes MCP client configuration"
+    remediation = (
+        "Installers write client configs to register a server; a server that does it can add "
+        "servers or turn on auto-approve without you seeing it. Review your client configs "
+        "(`mcpiranha scan`), especially auto-approve settings."
+    )
+
+    def run(self, ctx: RuleContext) -> list[Finding]:
+        findings = super().run(ctx)
+        tree = ctx.snapshot.source
+        hits = tree.hits if tree is not None else []
+        approve = any(h.kind == "client_config" and "auto-approve" in h.detail for h in hits)
+        severity = Severity.HIGH if approve else Severity.LOW
+        return [f.model_copy(update={"severity": severity}) for f in findings]
+
+
+@register
+class Wiper(_SourceRule):
+    id = "MCP-SRC-010"
+    title = "Code wipes the home directory or the disk"
+    default_severity = Severity.CRITICAL
+    kinds = ("destructive",)
+    what = "The code deletes the home directory, the filesystem root or disks"
+    confidence = Confidence.HIGH
+    remediation = "Don't run it. Check your backups if it already ran."

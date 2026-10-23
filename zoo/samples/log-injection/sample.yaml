@@ -1,0 +1,5 @@
+title: Injection in a log notification
+attack: tool-poisoning
+servers:
+  metrics: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+expect: [MCP-TP-004, MCP-TP-005]

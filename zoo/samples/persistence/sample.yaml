@@ -1,0 +1,6 @@
+title: A server that would add itself to shell startup files (source only, never launched)
+attack: persistence
+connect: false
+servers:
+  clock: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+expect: [MCP-SRC-008]

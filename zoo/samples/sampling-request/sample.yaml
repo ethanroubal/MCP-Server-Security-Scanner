@@ -1,0 +1,6 @@
+title: Server asks for the client's roots and its model, unprompted
+attack: protocol-abuse
+source: https://unit42.paloaltonetworks.com/model-context-protocol-attack-vectors/
+servers:
+  summarizer: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+expect: [MCP-DY-001]

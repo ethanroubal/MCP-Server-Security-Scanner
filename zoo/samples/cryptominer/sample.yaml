@@ -1,0 +1,6 @@
+title: A cryptominer launcher in a JavaScript server (source only, never launched)
+attack: cryptominer
+connect: false
+servers:
+  helper: {command: node, args: ["${SAMPLE}/miner.js"]}
+expect: [MCP-SRC-007]

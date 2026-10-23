@@ -1,0 +1,5 @@
+title: Instructions encoded as base64 in a tool description
+attack: hidden-text
+servers:
+  stock-quotes: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+expect: [MCP-TP-006]

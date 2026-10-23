@@ -67,9 +67,15 @@ def _strings(node: ast.AST) -> Iterator[str]:
 
 
 class _Visitor(ast.NodeVisitor):
-    def __init__(self, path: str, lines: list[str]) -> None:
+    def __init__(self, path: str, lines: list[str], tree: ast.AST) -> None:
         self.path, self.lines = path, lines
         self.hits: list[SourceHit] = []
+        self.parents: dict[ast.AST, ast.AST] = {
+            child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)
+        }
+        self.written = _written_names(tree)
+        self.executed = _names_passed_to(tree, patterns.EXEC_CALLS)
+        self.sets_approval = bool(patterns.APPROVE_SETTING.search("\n".join(lines)))
 
     def hit(self, node: ast.AST, kind: SourceHitKind, detail: str) -> None:
         line = getattr(node, "lineno", 1)
@@ -101,9 +107,52 @@ class _Visitor(ast.NodeVisitor):
         if short in _RUNNERS and node.args:
             inner = {_name(c.func).rsplit(".", 1)[-1] for c in ast.walk(node.args[0])
                      if isinstance(c, ast.Call)}  # fmt: skip
-            if found := sorted(inner & _DECODERS):
+            if found := sorted(inner & (_DECODERS | {"loads"})):  # + marshal.loads
                 self.hit(node, "dynamic_code", f"{short}() of the result of {', '.join(found)}()")
+        # a socket wired to stdin/stdout: os.dup2(s.fileno(), 0)
+        if func in ("os.dup2", "dup2") and node.args and "fileno" in ast.dump(node.args[0]):
+            self.hit(node, "reverse_shell", "connects a socket to the process's stdin/stdout")
+        # rmtree / rm of the home directory or the filesystem root
+        if (
+            short in ("rmtree", "rmdir", "unlink", "remove")
+            and node.args
+            and _is_home_or_root(node.args[0])
+        ):
+            self.hit(node, "destructive", f"{func}() of the home directory or /")
+        if func in ("pyarmor_runtime", "__pyarmor__") or func.endswith(".__pyarmor__"):
+            self.hit(node, "obfuscated", "PyArmor-obfuscated code (can't be reviewed)")
         self.generic_visit(node)
+
+    def in_call(self, node: ast.AST, calls: frozenset[str]) -> bool:
+        """The literal is an argument (a few levels down) of one of `calls`, or bound to a name
+        that's passed to one."""
+        current = node
+        for _ in range(5):
+            parent = self.parents.get(current)
+            if parent is None:
+                return False
+            current = parent
+            if isinstance(current, ast.Call) and _name(current.func).rsplit(".", 1)[-1] in calls:
+                return True
+            if isinstance(current, ast.Assign):
+                return any(isinstance(t, ast.Name) and t.id in self.executed
+                           for t in current.targets)  # fmt: skip
+        return False
+
+    def in_write(self, node: ast.AST) -> bool:
+        """The literal is part of a call that writes a file (a few levels up)."""
+        current = node
+        for _ in range(7):
+            parent = self.parents.get(current)
+            if parent is None:
+                return False
+            current = parent
+            if isinstance(current, ast.Call) and _writes(current):
+                return True
+            if isinstance(current, ast.Assign):  # bound to a name: is that name written?
+                return any(isinstance(t, ast.Name) and t.id in self.written
+                           for t in current.targets)  # fmt: skip
+        return False
 
     def visit_Assign(self, node: ast.Assign) -> None:
         value = node.value
@@ -145,24 +194,72 @@ class _Visitor(ast.NodeVisitor):
         self._env_loop(node, [node.iter])
         self.generic_visit(node)
 
-    # --- strings: credential paths, exfiltration hosts, curl | sh ---
+    # --- strings: credential paths, exfiltration hosts, shells, miners, persistence ---
     def visit_Constant(self, node: ast.Constant) -> None:
         if isinstance(node.value, str):
-            check_string(self, node, node.value)
+            self.string(node, node.value)
 
     def visit_JoinedStr(self, node: ast.JoinedStr) -> None:
         text = "".join(v.value if isinstance(v, ast.Constant) and isinstance(v.value, str)
                        else "{}" for v in node.values)  # fmt: skip
-        check_string(self, node, text)
+        self.string(node, text)
+        for value in node.values:  # the literal parts were judged together
+            if not isinstance(value, ast.Constant):
+                self.visit(value)
+
+    def string(self, node: ast.AST, text: str) -> None:
+        for kind, detail in patterns.string_hits(text):
+            if kind not in patterns.NEEDS_EXEC or self.in_call(node, patterns.EXEC_CALLS):
+                self.hit(node, kind, detail)
+        if (found := patterns.written_path_kind(text)) and self.in_write(node):
+            kind, detail = found
+            if kind == "client_config" and self.sets_approval:
+                detail += ", in code that sets auto-approve"
+            self.hit(node, kind, detail)
 
 
-def check_string(visitor: _Visitor, node: ast.AST, text: str) -> None:
-    if path := patterns.sensitive_path(text):
-        visitor.hit(node, "sensitive_file", f"names {path}")
-    if url := patterns.exfil_host(text):
-        visitor.hit(node, "exfil_host", f"hardcoded {url}")
-    if patterns.HEADER_RECIPIENT.search(text):
-        visitor.hit(node, "hardcoded_recipient", "a Bcc/Cc header with a fixed address")
+def _writes(call: ast.Call) -> bool:
+    short = _name(call.func).rsplit(".", 1)[-1]
+    if short not in patterns.WRITE_CALLS:
+        return False
+    if short != "open":
+        return True
+    modes = [a for a in call.args[1:2] if isinstance(a, ast.Constant)] + [
+        k.value for k in call.keywords if k.arg == "mode" and isinstance(k.value, ast.Constant)
+    ]
+    if isinstance(call.func, ast.Attribute):  # Path.open("a"): the mode is the first argument
+        modes = [a for a in call.args[:1] if isinstance(a, ast.Constant)] + modes
+    return any(isinstance(m.value, str) and patterns.WRITE_MODES.search(m.value) for m in modes)
+
+
+def _written_names(tree: ast.AST) -> set[str]:
+    """Names some call writes to: `p.write_text(...)`, `open(p, "a")`, `shutil.copy(x, p)`."""
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not _writes(node):
+            continue
+        if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
+            names.add(node.func.value.id)
+        names.update(a.id for a in node.args if isinstance(a, ast.Name))
+    return names
+
+
+def _names_passed_to(tree: ast.AST, calls: frozenset[str]) -> set[str]:
+    return {a.id for node in ast.walk(tree) if isinstance(node, ast.Call)
+            and _name(node.func).rsplit(".", 1)[-1] in calls
+            for a in node.args if isinstance(a, ast.Name)}  # fmt: skip
+
+
+def _is_home_or_root(node: ast.AST) -> bool:
+    """Path.home(), os.path.expanduser("~"), "~", "/", os.environ["HOME"]."""
+    text = ast.dump(node)
+    if isinstance(node, ast.Constant):
+        return node.value in ("/", "~", "~/", "C:\\")
+    return (
+        ("attr='home'" in text and "Path" in text)
+        or ("expanduser" in text and "Constant(value='~')" in text)
+        or "Constant(value='HOME')" in text
+    )
 
 
 def analyze(path: str, text: str) -> list[SourceHit]:
@@ -171,6 +268,6 @@ def analyze(path: str, text: str) -> list[SourceHit]:
         tree = ast.parse(text, filename=path)
     except (SyntaxError, ValueError):
         return []
-    visitor = _Visitor(path, text.splitlines())
+    visitor = _Visitor(path, text.splitlines(), tree)
     visitor.visit(tree)
     return visitor.hits
