@@ -44,3 +44,5 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true  # a rerun after a partial upload publishes only what's missing

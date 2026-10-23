@@ -53,6 +53,11 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/mcpiranha"]
 
+# The package and its docs only: the zoo (deliberately malicious samples), fixtures, tests and
+# calibration stay in the repository, where security tools expect them.
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/README.md", "/CHANGELOG.md"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
