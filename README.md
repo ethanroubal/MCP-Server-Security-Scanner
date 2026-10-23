@@ -34,7 +34,7 @@ mcpiranha lock --connect            # pin launch configs and tool definitions to
 mcpiranha verify --connect          # exit 1 if anything changed or was added since the lock
 mcpiranha inspect --connect <target>   # show the text the model reads, hidden characters revealed
 mcpiranha flows                     # each client's tool capabilities and the toxic flows between them
-mcpiranha scan --offline            # no registry / osv.dev lookups (skips the MCP-SC rules)
+mcpiranha scan --offline            # no registry / osv.dev lookups or package downloads
 mcpiranha scan --classifier         # experimental: add the local ML classifier (pip install 'mcpiranha[ml]')
 mcpiranha bench                     # in a checkout: score against the zoo of known-bad servers
 ```
@@ -70,6 +70,19 @@ deprecated or yanked releases and names missing from the registry (which anyone 
 This sends package names and versions to those services; `--offline` (or
 `MCPIRANHA_OFFLINE=1`) turns it off. `MCPIRANHA_NPM_REGISTRY` / `MCPIRANHA_PYPI_INDEX` point
 at a mirror. Docker images aren't looked up yet.
+
+### Source analysis
+
+mcpiranha also reads the code a server runs, without running it: a local script the config
+launches (`python server.py`, `node build/index.js`), or, online, the npm tarball or PyPI wheel
+of the resolved release, checked against the registry's hash and read in memory (nothing is
+extracted or installed). Python is parsed with `ast`, JavaScript/TypeScript (bundles and
+minified output included) with tree-sitter. The MCP-SRC rules look for malice behind honest
+metadata: **SRC-001** a fixed address added as Bcc/Cc (how postmark-mcp copied every email),
+**SRC-002** collecting secrets from the environment, **SRC-003** credential paths in code that
+also has a way out, **SRC-004** running decoded or downloaded code, **SRC-005** a hardcoded
+request catcher, tunnel or Discord webhook. Taint analysis of tool handlers (command injection,
+path traversal, SSRF) is next.
 
 ### Experimental classifier
 
@@ -138,13 +151,13 @@ detected. Method, scripts and results: [calibration/README.md](https://github.co
 
 The supply-chain rules were run on the same 85 npm/PyPI servers, pinned and unpinned: no false
 publisher or provenance alarms, one package with 159 advisories, two yanked or deprecated
-releases, and one registry config that runs a PyPI name nobody owns.
+releases, and one registry config that runs a PyPI name nobody owns. The source rules read
+19,000 files across their releases with no findings.
 
-Attacks are tested against [the zoo](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/zoo/README.md): 18 safe-by-construction
-malicious servers and packages, including reconstructions of public incidents and hijacked
-releases served from local registries. 15 are detected in full; the other 3 (a backdoored
-implementation nobody has reported yet, poisoned tool output, startup credential harvesting)
-need source or runtime analysis and are tracked as known gaps.
+Attacks are tested against [the zoo](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/zoo/README.md): 21 safe-by-construction
+malicious servers and packages, including reconstructions of public incidents and hijacked or
+backdoored releases served from local registries. 20 are detected in full; the remaining gap,
+injection in a tool's output, needs tool calls (Phase 4).
 
 ## Development
 

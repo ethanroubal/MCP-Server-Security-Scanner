@@ -262,6 +262,11 @@ humans don't look.
 ### 5.5 Implementation vulnerabilities — source analysis (`MCP-SRC`)
 Only when source is available (local path, git, or unpacked npm/PyPI tarball).
 
+Built first (MCP-SRC-001..005, see RULES.md): hidden-behavior detectors, because they close the gap no
+metadata rule can (postmark-mcp's BCC). `mcpiranha.source` reads local scripts and, online, the release's
+tarball/wheel in memory after checking its hash; Python via `ast`, JS/TS via tree-sitter (no Semgrep yet). Hits
+are stored on the snapshot (`SourceTree.hits`) so rescans stay offline. Taint analysis below is next.
+
 - **Taint analysis from tool arguments to sinks.** Sources = tool handler parameters (we know them precisely from the
   `registerTool` / `@mcp.tool()` call sites). Sinks: `child_process.exec`/`spawn({shell:true})`, `subprocess(shell=True)`,
   `os.system`, `eval`/`Function`, fs APIs without path containment (traversal), outbound HTTP with user-controlled
@@ -494,7 +499,7 @@ class Rule(ABC):
 | 0 ✅ | Repo skeleton, IR + Finding schema, fixture corpus v1 | Tests exist before detectors |
 | 1 ✅ | Discovery (16 clients), config rules, sandboxed `--connect`, metadata rules, lockfile, policy, TTY/JSON/SARIF, calibration against the registry's top 100 | Useful offline scanner |
 | 2 (in progress) | **Toxic flows** ✅, local classifier (experimental ✅; MCP-tuned model next), adversarial corpus + `bench` ✅, BYO-LLM layer | The differentiating features |
-| 3 (in progress) | Supply-chain analyzer ✅ (npm/PyPI + OSV; zoo samples on local registries), source SAST + LLM triage, npm/PyPI/git targets | Pre-install vetting |
+| 3 (in progress) | Supply-chain analyzer ✅ (npm/PyPI + OSV; zoo samples on local registries), source analysis (hidden behavior ✅; taint next) + LLM triage, npm/PyPI/git targets | Pre-install vetting |
 | 4 | Dynamic sandbox: honeytokens, egress, tracing, `--invoke`, fuzzing | Behavioral evidence |
 | 5 | `mcpiranha serve`, `mcpiranha proxy` runtime guard, registry-wide batch scanning | Continuous protection |
 

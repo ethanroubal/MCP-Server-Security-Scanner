@@ -15,7 +15,7 @@ import re
 from collections.abc import Awaitable, Callable
 from datetime import datetime
 from typing import Any, Literal, cast
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import InvalidVersion, Version
@@ -214,6 +214,8 @@ async def npm_meta(
     people = cast(list[dict[str, Any]], releases[version].get("maintainers") or [])
     maintainers = [str(m.get("name")) for m in people]
     deprecated = releases[version].get("deprecated")
+    dist = obj(releases[version].get("dist"))
+    integrity = dist.get("integrity") or (f"sha1:{dist['shasum']}" if dist.get("shasum") else None)
     return PackageMeta(
         registry="npm", name=ref.name, version=version, resolution=how,
         install_scripts=current.install_scripts, published_at=current.published_at,
@@ -221,6 +223,8 @@ async def npm_meta(
         publisher=current.publisher, provenance=current.provenance,
         deprecated=str(deprecated) if deprecated else None, previous=previous,
         earlier_publishers=list(dict.fromkeys(publishers)),
+        archive_url=str(dist["tarball"]) if dist.get("tarball") else None,
+        archive_hash=str(integrity) if integrity else None,
     )  # fmt: skip
 
 
@@ -268,6 +272,23 @@ def simple_html_files(page: str) -> list[dict[str, Any]]:
             entry["provenance"] = found["data-provenance"]
         files.append(entry)
     return files
+
+
+def _pick_archive(files: list[dict[str, Any]], index: str) -> dict[str, Any]:
+    """The file to read the source from: a pure-Python wheel, else any wheel, else the sdist."""
+
+    def rank(f: dict[str, Any]) -> int:
+        name = str(f.get("filename", ""))
+        return 0 if name.endswith("-none-any.whl") else 1 if name.endswith(".whl") else 2
+
+    if not files:
+        return {}
+    chosen = dict(min(files, key=rank))
+    url = str(chosen.get("url", ""))
+    if url.startswith("/"):  # relative to the index host (pypiserver)
+        parts = urlsplit(index)
+        chosen["url"] = f"{parts.scheme}://{parts.netloc}{url}"
+    return chosen
 
 
 async def pypi_meta(
@@ -346,9 +367,15 @@ async def pypi_meta(
                         if f.get("provenance")), None)  # fmt: skip
             info.provenance_source = await _pypi_publisher(cast(str | None, url), get)
     first = [t for fs in by_version.values() for f in fs if (t := _time(f.get("upload-time")))]
+    archive = _pick_archive(by_version[version], base)
+    sha256 = obj(archive.get("hashes")).get("sha256")
+    if not sha256 and "#sha256=" in str(archive.get("url", "")):  # PEP 503 HTML pages
+        archive["url"], sha256 = str(archive["url"]).split("#sha256=", 1)
+    archive_hash = f"sha256:{sha256}" if sha256 else None
     return PackageMeta(
         registry="pypi", name=ref.name, version=version, resolution=how,
         install_scripts=current.install_scripts, published_at=current.published_at,
         created_at=min(first) if first else None, provenance=current.provenance,
         provenance_source=current.provenance_source, previous=previous, yanked=yanked,
+        archive_url=archive.get("url") or None, archive_hash=archive_hash,
     )  # fmt: skip

@@ -25,6 +25,7 @@ from mcpiranha.core.models import Origin, ServerSnapshot, Severity
 from mcpiranha.core.pipeline import scan
 from mcpiranha.discovery import client_settings, to_launch
 from mcpiranha.rules.base import Rule
+from mcpiranha.source import collect
 from mcpiranha.supply import PUBLIC, Registries, enrich
 
 MANIFEST = "sample.yaml"
@@ -101,7 +102,7 @@ def load_sample(directory: Path, python: str) -> Sample:
     expect: Any = data.get("expect") or []
     if not isinstance(expect, list) or (not expect and not data.get("gap")):
         raise SampleError(f"{path}: `expect` must list rule ids, or `gap` say why it can't")
-    servers = _substitute(data["servers"], {"PYTHON": python, "SAMPLE": str(directory)})
+    servers = _substitute(data["servers"], {"PYTHON": python, "SAMPLE": str(directory.resolve())})
     registries = cast(dict[str, Any], data.get("registries") or {})
     return Sample(
         name=directory.name,
@@ -172,6 +173,8 @@ async def run(samples: Sequence[Sample], rules: Sequence[Rule], *, timeout: floa
                 results[i] = SampleResult(sample, frozenset(), None, skipped=why)
                 return
             snaps, errors = await enrich(snaps, registries=sample.registries)
+        snaps, source_errors = await collect(snaps, download=sample.lookup)
+        errors += source_errors
         if sample.connect:
             async with limiter:
                 snaps, connect_errors = await connect_all(snaps, options)

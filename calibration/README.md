@@ -9,7 +9,7 @@ uv run python calibration/run.py --run NAME         # scan every target in the D
 uv run python calibration/report.py --run NAME      # REPORT.md + labels.yaml for review
 uv run python calibration/rescan.py --from NAME --to NAME-tuned   # rerun rules offline
 uv run python calibration/flows_review.py --run NAME   # cross-server flows on combined servers
-uv run python calibration/supply_review.py [--unpinned] # MCP-SC rules on the targets' packages
+uv run python calibration/supply_review.py [--unpinned] [--source]  # MCP-SC (+ MCP-SRC) rules
 ```
 
 - **build_targets.py** pages the official MCP registry, keeps the latest stdio packages (npm,
@@ -173,6 +173,30 @@ Google Workspace, MongoDB + ClickHouse + Airtable + Tavily, SearXNG + Desktop Co
   runs), Docker images, and PyPI publisher changes beyond provenance (PyPI's API doesn't say who
   uploaded a release). SC-003 and SC-005 fired on nothing real; the zoo's hijack samples are
   their only positive evidence so far.
+
+## 2026-10 run: source analysis (MCP-SRC)
+
+`supply_review.py --source` downloads each target's release archive (84 of 85; one name doesn't
+exist), checks it against the registry's hash and analyzes it in memory: 15,848 files at the
+pinned versions, 19,000 at the newest releases. Seven files over 5 MB (bundles) were skipped.
+
+First pass, before tuning: SRC-001 (fixed Bcc/Cc), SRC-002, SRC-004's decoded-code half and
+SRC-005 (request catchers) found nothing. Two detectors were all noise:
+
+- **`curl ... | sh` strings: 8 packages, all benign**: install instructions printed to the user
+  (uv, CLIs), and security tools' deny-lists of dangerous commands. Dropped.
+- **Credential paths: 13 packages, all benign**: dbhub's SSH tunnel reads `~/.ssh/id_rsa` by
+  default, scanners list `.npmrc` / `.aws/credentials` to block them, `.npmrc` is read for the
+  registry URL. SRC-003 now needs the same code to also have a way out (a fixed recipient, a
+  request catcher, or an environment harvest): that pair is what a stealer looks like.
+- **Then, on the newest releases**, bernstein's `doctor` command listed which `API` / `TOKEN`
+  variables are set (names only, for a report). SRC-002 now needs the values read
+  (`.items()`, `environ[k]`, `Object.entries`, `process.env[k]`).
+
+After tuning: **no MCP-SRC findings on any of the 84 packages**, pinned or newest, while the zoo's
+five source samples (local scripts, an npm tarball and a wheel) are all detected. What isn't
+covered: dependencies' code, files over 5 MB, Docker images, and anything needing data flow
+(where a tool's arguments end up), which is the next step.
 
 ## Typosquat targets (MCP-XS-003)
 

@@ -20,7 +20,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
-from mcpiranha import __version__, supply
+from mcpiranha import __version__, source, supply
 from mcpiranha import bench as bench_mod
 from mcpiranha.acquire import ConnectOptions, connect_all
 from mcpiranha.acquire.oauth import open_in_browser
@@ -116,8 +116,8 @@ OfflineOpt = Annotated[
     bool,
     typer.Option(
         "--offline",
-        help="Don't look packages up on npm, PyPI and osv.dev (the MCP-SC supply-chain rules "
-        "need it). Also set by MCPIRANHA_OFFLINE=1.",
+        help="Don't look packages up on npm, PyPI and osv.dev or download their source (the "
+        "MCP-SC rules, and MCP-SRC on packages, need it). Also set by MCPIRANHA_OFFLINE=1.",
     ),
 ]
 HeaderOpt = Annotated[
@@ -249,6 +249,10 @@ def _describe_sources(targets: Targets, *, connected: bool) -> None:
         )
     if looked_up := sum(bool(s.package and s.package.checked_at) for s in targets.snapshots):
         out.print(Text(f"Checked {looked_up} package(s) against the registries and OSV.",
+                       style="dim"))  # fmt: skip
+    if analyzed := [s.source for s in targets.snapshots if s.source]:
+        files = sum(t.files for t in analyzed)
+        out.print(Text(f"Analyzed the source of {len(analyzed)} server(s) ({files} files).",
                        style="dim"))  # fmt: skip
     out.print()
 
@@ -384,11 +388,19 @@ def scan(
         timeout=timeout, jobs=jobs, header=header, oauth=oauth, allow_network=allow_network,
         allow_install_scripts=allow_install_scripts,
     )  # fmt: skip
-    if not (offline or supply.offline_by_default()):
+    online = not (offline or supply.offline_by_default())
+    if online:
         targets.snapshots, lookup_warnings = anyio.run(supply.enrich, targets.snapshots)
         for warning in lookup_warnings:
             _warn(warning)
         warnings = [*warnings, *lookup_warnings]
+    # local scripts always; package archives only online
+    targets.snapshots, source_warnings = anyio.run(
+        functools.partial(source.collect, targets.snapshots, download=online)
+    )
+    for warning in source_warnings:
+        _warn(warning)
+    warnings = [*warnings, *source_warnings]
     if fmt is OutputFormat.TTY and not output:
         _describe_sources(targets, connected=connect)
 
@@ -642,7 +654,7 @@ def bench(
                 r.sample.name,
                 r.sample.attack,
                 Text(r.status, style=style[r.status]),
-                ", ".join(sorted(r.missing)) or "-",
+                "-" if r.skipped else ", ".join(sorted(r.missing)) or "-",
                 ", ".join(sorted(r.extra)) or "-",
             )
         out.print(table)

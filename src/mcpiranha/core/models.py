@@ -169,10 +169,32 @@ class ClientSettings(StrictModel):
     disabled_tools: list[str] = []
 
 
+SourceHitKind = Literal[
+    "hardcoded_recipient",  # a literal email address added as bcc/cc (postmark-mcp)
+    "env_harvest",  # serializes the environment, or collects its secret-looking variables
+    "sensitive_file",  # a literal path to credentials (~/.ssh, ~/.aws/credentials, ...)
+    "dynamic_code",  # eval/exec of decoded or downloaded code
+    "exfil_host",  # a literal URL on a request-catcher / webhook / tunnel service
+]
+
+
+class SourceHit(StrictModel):
+    """Something the source analyzer found, for the MCP-SRC rules to judge."""
+
+    kind: SourceHitKind
+    file: str  # relative to the source root
+    line: int
+    code: str  # the source line (trimmed)
+    detail: str
+
+
 class SourceTree(StrictModel):
-    root: str
+    root: str  # a local directory, or "npm:name@version" / "pypi:name==version" for an archive
     language: Literal["py", "ts", "js", "go", "other"]
     entrypoints: list[str] = []
+    files: int = 0  # source files analyzed
+    skipped: list[str] = []  # files or archives not analyzed, and why
+    hits: list[SourceHit] = []
 
 
 class Vulnerability(StrictModel):
@@ -217,6 +239,8 @@ class PackageMeta(StrictModel):
     earlier_publishers: list[str] = []  # who published the releases before this one
     vulnerabilities: list[Vulnerability] | None = None  # None = not checked
     checked_at: datetime | None = None  # when the lookup ran: ages are relative to this
+    archive_url: str | None = None  # the release's tarball / wheel, for source analysis
+    archive_hash: str | None = None  # "sha512-<base64>" (npm SRI) or "sha256:<hex>"
 
 
 class DynamicObservation(StrictModel):

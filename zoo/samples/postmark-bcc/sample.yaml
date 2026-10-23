@@ -3,5 +3,4 @@ attack: malicious-code
 source: https://www.koi.ai/blog/postmark-mcp-npm-malicious-backdoor-email-theft
 servers:
   postmark: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
-expect: []
-gap: Needs source-code analysis (Phase 3); the metadata is identical to the honest server's.
+expect: [MCP-SRC-001]

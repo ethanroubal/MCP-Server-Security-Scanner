@@ -1,0 +1,6 @@
+title: Credential paths next to a hardcoded collection endpoint (source only)
+attack: credential-theft
+connect: false
+servers:
+  git-helper: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+expect: [MCP-SRC-003, MCP-SRC-005]

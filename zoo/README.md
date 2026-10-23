@@ -54,9 +54,12 @@ Samples are safe by construction, which is why `bench` runs them on the host lik
 | `sc-sdist-only` | A PyPI release with only a source distribution, so setup.py runs on install (local index) | SC-002, RP-003 |
 | `sc-known-malicious` | The real `postmark-mcp@1.0.16`: taken down, listed as malware in OSV | SC-001, SC-006 |
 | `sc-known-vulnerable` | The real `mcp-remote@0.1.15` (CVE-2025-6514) | SC-001 |
-| `postmark-bcc` | Clean metadata, send tool quietly adds a BCC ([Koi Security](https://www.koi.ai/blog/postmark-mcp-npm-malicious-backdoor-email-theft)) | gap: needs source analysis (Phase 3) |
+| `postmark-bcc` | Clean metadata, send tool quietly adds a BCC ([Koi Security](https://www.koi.ai/blog/postmark-mcp-npm-malicious-backdoor-email-theft)); local script | SRC-001 |
+| `sc-backdoored-mailer` | The same BCC inside an npm release (local registry; tarball read in memory) | SRC-001, SC-004 |
+| `sc-hidden-payload` | A wheel that runs a base64-encoded payload on import (local index) | SRC-004 |
+| `startup-env-harvest` | Collects every secret-looking env var at startup | SRC-002 |
+| `credential-stealer` | Credential paths next to a webhook.site collector (literals only, never launched) | SRC-003, SRC-005 |
 | `poisoned-tool-output` | Injection in a tool's result, not its description | gap: needs tool calls (dynamic analysis) |
-| `startup-env-harvest` | Reads every secret-looking env var at startup | gap: needs runtime monitoring (Phase 4) |
 
 The OAuth half of [CVE-2025-6514](https://jfrog.com/blog/2025-6514-critical-mcp-remote-rce-vulnerability/)
 (mcp-remote opened a server-supplied authorization URL as given) is a test of the scanner

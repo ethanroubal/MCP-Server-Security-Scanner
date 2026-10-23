@@ -1,0 +1,7 @@
+title: A PyPI server whose wheel runs a base64-encoded payload on import (package source)
+attack: malicious-code
+connect: false
+registries: {pypi: "http://127.0.0.1:8081/simple"}
+servers:
+  metrics: {command: uvx, args: [zoo-metrics-mcp==1.0.0]}
+expect: [MCP-SRC-004]

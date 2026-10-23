@@ -60,4 +60,16 @@ Judged on registry and OSV data gathered before the scan (`mcpiranha.supply`); o
 | MCP-SC-005 | Release published by an npm account that never published the package before | ✅ |
 | MCP-SC-006 | Deprecated or yanked release, or a package name missing from the registry | ✅ |
 
-MCP-SRC and MCP-DY ids will be added with Phases 3–4.
+## MCP-SRC — Source code (§5.5)
+Judged on what `mcpiranha.source` finds in a local script or the package's release archive.
+
+| Id | Title | Status |
+|---|---|---|
+| MCP-SRC-001 | Code adds a fixed Bcc/Cc recipient | ✅ |
+| MCP-SRC-002 | Code collects secrets from the environment (serializes it, or reads TOKEN/KEY values) | ✅ |
+| MCP-SRC-003 | Code names credential files and has a way to send data out | ✅ |
+| MCP-SRC-004 | Code runs decoded or downloaded code (`eval(atob(...))`, `exec(b64decode(...))`) | ✅ |
+| MCP-SRC-005 | Code contains a request-catcher, tunnel or Discord webhook address | ✅ |
+| MCP-SRC-1xx | Taint from tool arguments to command / path / URL / SQL sinks | planned |
+
+MCP-DY ids will be added with Phase 4.

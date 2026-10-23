@@ -1,0 +1,11 @@
+title: An npm mail server whose code BCCs every message to a fixed address (package source)
+attack: malicious-code
+source: https://www.koi.ai/blog/postmark-mcp-npm-malicious-backdoor-email-theft
+note: >-
+  postmark-bcc caught in the published package rather than a local script: the tarball comes
+  from the zoo's local npm registry, is checked against its hash and read in memory.
+connect: false
+registries: {npm: "http://127.0.0.1:4873"}
+servers:
+  mailer: {command: npx, args: [-y, "@zoo/mailer-mcp@1.0.0"]}
+expect: [MCP-SRC-001, MCP-SC-004]

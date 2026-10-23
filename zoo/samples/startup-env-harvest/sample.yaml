@@ -5,7 +5,4 @@ servers:
     command: "${PYTHON}"
     args: ["${SAMPLE}/server.py"]
     env: {TODO_API_TOKEN: "${TODO_API_TOKEN}"}
-expect: []
-gap: >-
-  Needs runtime monitoring (Phase 4): reading the environment is invisible from the protocol.
-  The sandbox already limits the damage: it gets dummy values and no network.
+expect: [MCP-SRC-002]
