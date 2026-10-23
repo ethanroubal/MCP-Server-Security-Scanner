@@ -1,0 +1,7 @@
+title: A clean PyPI server that requires a package with a hidden payload (config only)
+attack: dependency-hijack
+connect: false
+registries: {pypi: "http://127.0.0.1:8081/simple"}
+servers:
+  weather: {command: uvx, args: [zoo-weather-server==1.1.0]}
+expect: [MCP-SRC-004]

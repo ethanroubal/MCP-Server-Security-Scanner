@@ -59,6 +59,9 @@ Judged on registry and OSV data gathered before the scan (`mcpiranha.supply`); o
 | MCP-SC-004 | Very new package (under 30 days) | ✅ |
 | MCP-SC-005 | Release published by an npm account that never published the package before | ✅ |
 | MCP-SC-006 | Deprecated or yanked release, or a package name missing from the registry | ✅ |
+| MCP-SC-007 | Known malicious (critical) or vulnerable dependency | ✅ |
+| MCP-SC-008 | Dependency runs code at install time (high when a recent release just added it) | ✅ |
+| MCP-SC-009 | Suspicious dependency: not on the registry, from git/URL, or a recent release with a new publisher or lost provenance | ✅ |
 
 ## MCP-SRC — Source code (§5.5)
 Judged on what `mcpiranha.source` finds in a local script or the package's release archive.

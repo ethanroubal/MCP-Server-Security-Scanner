@@ -283,8 +283,9 @@ joined to a base directory without a containment check; whole-input pass-through
 Built (MCP-SC-001..006, see RULES.md): `mcpiranha.supply` resolves the release a config runs (or
 takes the one `--connect` installed) from the npm packument or PyPI's JSON simple API, records
 publisher, install scripts, provenance, age and the previous release, and queries OSV. Rules stay
-offline and judge those facts. Not yet: dependencies' scripts and advisories, Docker images,
-repo ↔ tarball comparison, download counts.
+offline and judge those facts. Dependency trees too (`supply/deps.py`, MCP-SC-007..009): resolved from
+registry metadata, checked against OSV, with install scripts and the code of install-time or suspicious
+dependencies read by the MCP-SRC analyzers. Not yet: Docker images, repo ↔ tarball comparison, download counts.
 
 Planned scope:
 - Known vulnerabilities via OSV.dev for the package and its lockfile.

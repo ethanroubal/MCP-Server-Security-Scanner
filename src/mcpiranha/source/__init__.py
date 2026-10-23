@@ -14,9 +14,8 @@ judge it.
 
 from __future__ import annotations
 
-import base64
-import hashlib
 import io
+import re
 import tarfile
 import zipfile
 from collections.abc import Iterator, Sequence
@@ -28,25 +27,34 @@ import httpx2
 
 from mcpiranha import __version__
 from mcpiranha.core.launch import command_line
-from mcpiranha.core.models import ServerSnapshot, SourceHit, SourceTree
-from mcpiranha.source import javascript, python, taint_javascript, taint_python
-from mcpiranha.supply import cache_dir
+from mcpiranha.core.models import PackageMeta, ServerSnapshot, SourceHit, SourceHitKind, SourceTree
+from mcpiranha.source import javascript, patterns, python, taint_javascript, taint_python
+from mcpiranha.supply.archives import ArchiveError
+from mcpiranha.supply.archives import download as _download
+from mcpiranha.supply.archives import verify as verify  # re-exported for callers
 
 PY = (".py",)
 JS = (".js", ".mjs", ".cjs", ".ts", ".mts", ".cts", ".tsx", ".jsx")
-MAX_ARCHIVE = 50 * 1024 * 1024
 MAX_FILE = 5 * 1024 * 1024
 MAX_TOTAL = 80 * 1024 * 1024
 MAX_UNPACKED = 1024 * 1024 * 1024  # stop reading an archive (bombs: tiny download, huge content)
 MAX_HITS = 100
+MAX_HITS_WITH_DEPS = 300
+DEPENDENCY_JOBS = 8
+MAX_DEPENDENCY_BYTES = 300 * 1024 * 1024  # per server
+# `curl ... | sh` in an install script: the download runs at install time
+_DOWNLOAD_AND_RUN = re.compile(
+    r"\b(curl|wget)\b[^|;&\n]*\|\s*(sudo\s+)?(sh|bash|zsh|python3?|node)\b"
+    r"|\b(iwr|irm|invoke-webrequest)\b.{0,80}\|\s*iex\b",
+    re.IGNORECASE,
+)
 _PROJECT_MARKERS = ("pyproject.toml", "setup.py", "package.json", ".git")
 _SKIP_DIRS = frozenset({"node_modules", ".venv", "venv", ".git", "__pycache__", ".tox", "dist-info",
                         "test", "tests", "__tests__", "spec", "examples"})  # fmt: skip
 _RUNNERS = frozenset({"python", "python3", "node", "bun", "deno", "tsx", "ts-node", "uv"})
 
 
-class SourceError(Exception):
-    pass
+SourceError = ArchiveError  # what a failed download raises
 
 
 def _skip(path: str) -> bool:
@@ -54,7 +62,9 @@ def _skip(path: str) -> bool:
     return any(p in _SKIP_DIRS for p in parts[:-1]) or path.endswith((".d.ts", ".map"))
 
 
-def analyze_files(files: Iterator[tuple[str, bytes]], root: str) -> SourceTree:
+def analyze_files(files: Iterator[tuple[str, bytes]], root: str, *,
+                  taint: bool = True) -> SourceTree:  # fmt: skip
+    """`taint`: also follow tool arguments (off for dependencies: they have no tool handlers)."""
     hits: list[SourceHit] = []
     seen: set[tuple[str, str]] = set()
     count, languages, skipped = 0, set[str](), list[str]()
@@ -82,9 +92,9 @@ def analyze_files(files: Iterator[tuple[str, bytes]], root: str) -> SourceTree:
             languages.add("ts" if path.endswith((".ts", ".mts", ".cts", ".tsx")) else "js")
             js_files.append((path, data))
             keep(javascript.analyze(path, data))
-    # taint crosses files: a handler in index.js, the exec in tools/run.js
-    keep(taint_python.analyze_package(py_files))
-    keep(taint_javascript.analyze_package(js_files))
+    if taint:  # taint crosses files: a handler in index.js, the exec in tools/run.js
+        keep(taint_python.analyze_package(py_files))
+        keep(taint_javascript.analyze_package(js_files))
     language = "py" if languages == {"py"} else "ts" if "ts" in languages else (
         "js" if languages else "other")  # fmt: skip
     return SourceTree(root=root, language=language, files=count, skipped=skipped, hits=hits)
@@ -132,39 +142,6 @@ def _local_files(entry: Path) -> Iterator[tuple[str, bytes]]:
 
 
 # --- package archives -----------------------------------------------------------------------------
-
-
-def verify(data: bytes, expected: str) -> bool:
-    if expected.startswith("sha512-"):
-        return base64.b64encode(hashlib.sha512(data).digest()).decode() == expected[7:]
-    algorithm, _, digest = expected.partition(":")
-    if algorithm in ("sha256", "sha1"):
-        return hashlib.new(algorithm, data).hexdigest() == digest.lower()
-    return False
-
-
-async def _download(client: httpx2.AsyncClient, url: str, expected: str) -> bytes:
-    cached = cache_dir().parent / "archives" / hashlib.sha256(expected.encode()).hexdigest()
-    if cached.is_file():
-        data = cached.read_bytes()
-        if verify(data, expected):
-            return data
-    chunks: list[bytes] = []
-    size = 0
-    async with client.stream("GET", url) as response:
-        if response.status_code >= 400:
-            raise SourceError(f"{url} answered HTTP {response.status_code}")
-        async for chunk in response.aiter_bytes():
-            size += len(chunk)
-            if size > MAX_ARCHIVE:
-                raise SourceError(f"archive larger than {MAX_ARCHIVE // 2**20} MB")
-            chunks.append(chunk)
-    data = b"".join(chunks)
-    if not verify(data, expected):
-        raise SourceError(f"{url} doesn't match the registry's hash")
-    cached.parent.mkdir(parents=True, exist_ok=True)
-    cached.write_bytes(data)
-    return data
 
 
 def archive_files(data: bytes, name: str) -> Iterator[tuple[str, bytes]]:
@@ -244,9 +221,133 @@ async def collect(
                     zipfile.BadZipFile) as exc:  # fmt: skip
                 warnings.append(f"{snapshot.name}: source not analyzed: {exc}")
                 return
+            if package is not None:
+                tree = await _with_dependencies(tree, package, client, download=download)
             out[i] = snapshot.model_copy(update={"source": tree})
 
         async with anyio.create_task_group() as group:
             for i, snapshot in enumerate(snapshots):
                 group.start_soon(one, i, snapshot)
     return out, warnings
+
+
+ALWAYS_KINDS: frozenset[str] = frozenset({"reverse_shell", "miner", "destructive"})
+# Bytes any ALWAYS_KINDS hit needs: other files of an unsuspicious dependency aren't parsed
+# (a server's tree is often thousands of files).
+_ALWAYS_MARKERS = re.compile(rb"stratum\+|xmrig|cryptonight|coinhive|donate-level|/dev/tcp|dup2|"
+                             rb"rm -[a-z]*r|rmtree|rmSync|rmdirSync|removeSync|emptyDir|mkfs|"
+                             rb"vssadmin|del /|format [a-z]:|Net\.Sockets|socat|mkfifo|nc -e|"
+                             rb"ncat|\bdd if=", re.IGNORECASE)  # fmt: skip
+_SCRIPT_FILE = re.compile(
+    r"\b(?:node|python3?|sh|bash|tsx|bun)\s+(?:\./)?([\w./-]+\.(?:c?js|mjs|ts|py|sh))"
+)
+RECENT_DAYS = 30
+
+
+def install_files(package: PackageMeta) -> set[str]:
+    """Files that run when the package is installed: what its install scripts start (`node
+    setup.js`), and setup.py for a PyPI release without a wheel."""
+    files: set[str] = set()
+    for script in package.install_scripts:
+        files.update(m.group(1) for m in _SCRIPT_FILE.finditer(script))
+        if script.startswith("setup.py"):
+            files.add("setup.py")
+    return files
+
+
+def suspicious(package: PackageMeta) -> bool:
+    """Signs a dependency's release may be hijacked or malicious, so all its code counts."""
+    if any(v.id.startswith("MAL-") for v in package.vulnerabilities or []):
+        return True
+    now = package.checked_at
+    if now is None:
+        return False
+    if package.created_at and (now - package.created_at).days < RECENT_DAYS:
+        return True  # a new package (typosquats, slopsquats)
+    recent = package.published_at is not None and (now - package.published_at).days < RECENT_DAYS
+    prev = package.previous
+    return recent and (
+        (prev is not None and not prev.install_scripts and bool(package.install_scripts))
+        or (prev is not None and bool(prev.provenance) and package.provenance is False)
+        or (bool(package.publisher) and bool(package.earlier_publishers)
+            and package.publisher not in package.earlier_publishers
+            and not (package.publisher or "").startswith("trusted publishing"))
+    )  # fmt: skip
+
+
+def script_hits(package: PackageMeta, prefix: str) -> list[SourceHit]:
+    """Install-script command lines run as soon as the package is installed: judge each one as
+    an executed command (reverse shells, wipes, cron installs, downloads piped to a shell)."""
+    hits: list[SourceHit] = []
+    for script in package.install_scripts:
+        command = script.split(": ", 1)[-1]
+        found: list[tuple[SourceHitKind, str]] = list(patterns.string_hits(command))
+        if m := _DOWNLOAD_AND_RUN.search(command):
+            found.append(("dynamic_code", f"install script runs downloaded code: {m.group(0)}"))
+        for kind, detail in found:
+            where = f"{prefix}package.json"
+            hits.append(SourceHit(kind=kind, file=where, line=1, code=script[:200],
+                                  detail=f"install script: {detail}"))  # fmt: skip
+    return hits
+
+
+async def _with_dependencies(
+    tree: SourceTree, package: PackageMeta, client: httpx2.AsyncClient, *, download: bool
+) -> SourceTree:
+    """Add what each dependency's code and install scripts do (behavior only, not taint): their
+    hits keep the dependency's name in the path, `name@version/file`."""
+    hits = [*tree.hits, *script_hits(package, "")]
+    skipped = list(tree.skipped)
+    deps = [d for d in package.dependencies or [] if d.version]
+    limiter = anyio.CapacityLimiter(DEPENDENCY_JOBS)
+    files = tree.files
+    total = 0
+
+    async def one(dep: PackageMeta) -> None:
+        nonlocal files, total
+        prefix = f"{dep.name}@{dep.version}/"
+        found = script_hits(dep, prefix)
+        installs = install_files(dep)
+        suspect = suspicious(dep)
+        if not (suspect or dep.install_scripts):
+            # Nothing of it runs at install and the release looks normal: its code is a library
+            # the server calls, judged by OSV and the hijack signals, not read line by line
+            # (a server's tree is often hundreds of packages and thousands of files).
+            hits.extend(found)
+            return
+        if download and dep.archive_url and dep.archive_hash and total < MAX_DEPENDENCY_BYTES:
+            try:
+                async with limiter:
+                    data = await _download(client, dep.archive_url, dep.archive_hash)
+                    total += len(data)
+                    name = dep.archive_url.rsplit("/", 1)[-1]
+                    wanted = (
+                        f for f in archive_files(data, name)
+                        if suspect or f[0] in installs or _ALWAYS_MARKERS.search(f[1])
+                    )  # fmt: skip
+                    sub = await anyio.to_thread.run_sync(
+                        lambda: analyze_files(wanted, dep.name, taint=False)
+                    )
+                files += sub.files
+                # Library code is full of features that look like malice out of context (shell
+                # completion writing ~/.bashrc, dup2 in output capture): a dependency's code
+                # counts when it runs at install, when the release looks hijacked, or when the
+                # behavior is unambiguous (calibration: 22 of 84 servers before this).
+                found += [h.model_copy(update={"file": prefix + h.file}) for h in sub.hits
+                          if suspect or h.file in installs or h.kind in ALWAYS_KINDS]  # fmt: skip
+            except (SourceError, httpx2.HTTPError, OSError, tarfile.TarError,
+                    zipfile.BadZipFile) as exc:  # fmt: skip
+                skipped.append(f"{prefix}: not analyzed: {exc}")
+        hits.extend(found)
+
+    async with anyio.create_task_group() as group:
+        for dep in deps:
+            group.start_soon(one, dep)
+    if total >= MAX_DEPENDENCY_BYTES:
+        skipped.append(
+            f"dependencies: stopped downloading after {MAX_DEPENDENCY_BYTES // 2**20} MB"
+        )
+    unique = list({(h.kind, h.file, h.detail): h for h in hits}.values())[:MAX_HITS_WITH_DEPS]
+    if len(unique) == len(tree.hits) and files == tree.files:
+        return tree
+    return tree.model_copy(update={"hits": unique, "files": files, "skipped": skipped})

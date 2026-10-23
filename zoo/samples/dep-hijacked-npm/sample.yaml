@@ -1,0 +1,12 @@
+title: A clean server whose dependency got a hijacked release (config only)
+attack: dependency-hijack
+note: >-
+  @zoo/notes-server is clean; it depends on @zoo/helper-lib ^1.0.0, whose 1.0.1 was published by
+  a new account and adds a postinstall that would post the environment to a webhook (the shape
+  of the 2025 npm worm and chalk/debug incidents). Local npm registry; nothing is installed.
+connect: false
+registries: {npm: "http://127.0.0.1:4873"}
+servers:
+  notes: {command: npx, args: [-y, "@zoo/notes-server@1.0.0"]}
+expect: [MCP-SC-004, MCP-SC-008, MCP-SC-009, MCP-SRC-002, MCP-SRC-005]
+severity: {MCP-SC-008: high}

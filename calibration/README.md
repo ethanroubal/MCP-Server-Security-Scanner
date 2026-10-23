@@ -251,6 +251,40 @@ findings on the 84 packages**.
 What it doesn't follow: flows through objects, callbacks or class instances other than
 `this`/`self`, and anything past two calls; any check that looks like containment is trusted.
 
+## 2026-10 run: dependency trees (MCP-SC-007..009)
+
+`supply_review.py --source` with dependency resolution (the default): every server's tree,
+resolved from registry metadata, checked against OSV, with install scripts and the code of
+install-time or suspicious dependencies read by the MCP-SRC analyzers.
+
+**First pass: noisy and slow** (21 minutes for 84 servers, 204,606 files parsed):
+- MCP-SC-009 on 49 of 84 servers, nearly all "new publisher" (96) and "lost provenance" (11) on
+  old releases deep in trees (express's maintainers rotate; a release published by hand once).
+  Hijacked releases are found and pulled within days, so these now count only on releases from
+  the last 30 days.
+- "Install script just added" compared protobufjs 7.6.6 with 8.8.0: the release before was
+  picked by date, and projects maintain several lines. It's now the highest version below.
+- MCP-SRC-006 on 20 servers from `click.testing` and pytest's capture (`os.dup2(fileno)` with no
+  socket): now needs a socket in the same file. MCP-SRC-008/009 on 32 from library features
+  (typer and cyclopts install shell completion into ~/.bashrc; the MCP SDK's `mcp install`).
+- `worker_threads` listed as a dependency: not on npm, but a Node core-module name npm refuses
+  to publish, so not a confusion risk. Core-module names are excluded.
+
+**Policy for dependency code**: it counts when it runs at install (files the install scripts
+start, setup.py of sdist-only releases), when the release looks hijacked (malware advisory, new
+package, or a recent release with a new publisher, lost provenance or a new install script), or
+when the behavior is unambiguous (reverse shell, miner, wiper). Other dependencies aren't
+downloaded at all: they're libraries the server calls, judged by OSV and the hijack signals.
+
+**After** (5:43 for 84 servers, 16,075 files):
+
+| Rule | Servers | What |
+|---|---|---|
+| SC-007 | 21 | dependencies with published advisories (3 with critical ones: browser-use, firebase-tools, mcp-proxy-for-aws) |
+| SC-008 | 19, all low | native builds and binary downloads (better-sqlite3, node-pty, keytar, puppeteer, onnxruntime) |
+| SC-009 | 4 | three dependency packages under 30 days old; one recent release in Desktop Commander's tree (via puppeteer) with a new publisher and no provenance, unverified |
+| MCP-SRC on dependency code | 0 | |
+
 ## Typosquat targets (MCP-XS-003)
 
 `update_known_packages.py` builds the list of names typosquatters would imitate from the

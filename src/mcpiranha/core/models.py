@@ -263,6 +263,14 @@ class PackageMeta(StrictModel):
     checked_at: datetime | None = None  # when the lookup ran: ages are relative to this
     archive_url: str | None = None  # the release's tarball / wheel, for source analysis
     archive_hash: str | None = None  # "sha512-<base64>" (npm SRI) or "sha256:<hex>"
+    requires: dict[str, str] = {}  # what this release depends on: name -> version range
+    metadata_hash: str | None = None  # PyPI: the archive's core metadata is served on its own
+    # Dependencies (supply/deps.py): set on the top-level package only, flattened; each one's
+    # `via` is the chain of packages that pulls it in.
+    via: list[str] = []
+    external: str | None = None  # a dependency from a git / tarball URL, bypassing the registry
+    dependencies: list[PackageMeta] | None = None  # None = not resolved
+    dependencies_skipped: list[str] = []  # what couldn't be resolved, or the cap that was hit
 
 
 class DynamicObservation(StrictModel):

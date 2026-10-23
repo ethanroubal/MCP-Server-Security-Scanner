@@ -62,9 +62,13 @@ class FakeRegistry:
     def __init__(self, responses: dict[str, Any]) -> None:
         self.responses = responses
         self.posted: list[Any] = []
+        self.archives: dict[str, bytes] = {}
 
     async def get(self, url: str, headers: dict[str, str]) -> Any:
         return self.responses.get(url)
+
+    async def archive(self, url: str, expected_hash: str) -> bytes:
+        return self.archives[url]
 
     async def post(self, url: str, body: Any) -> Any:
         self.posted.append(body)

@@ -1,0 +1,8 @@
+title: A server that depends on a name nobody published (dependency confusion, config only)
+attack: dependency-confusion
+connect: false
+registries: {npm: "http://127.0.0.1:4873"}
+servers:
+  todo: {command: npx, args: [-y, "@zoo/todo-server@1.0.0"]}
+expect: [MCP-SC-004, MCP-SC-009]
+severity: {MCP-SC-009: high}

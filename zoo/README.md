@@ -46,8 +46,8 @@ isn't detected yet and what will close it.
 
 `tests/test_threat_coverage.py` keeps it honest: every rule must be in the catalog and exercised
 by a test, every test it names must exist and expect its rules, and every gap must be explained.
-`mcpiranha bench` ends with the catalog's state (currently 51 detected, 3 partly, 6 not yet:
-tool output, dependency code, repository diffs, and runtime egress, file access and time bombs).
+`mcpiranha bench` ends with the catalog's state (currently 54 detected, 4 partly, 5 not yet:
+tool output, repository diffs, and runtime egress, file access and time bombs).
 
 Vulnerable (not malicious) servers sit next to safe twins: `safe-tools` lists rules that must not
 fire (`forbid:`), so a change that adds false positives fails the bench too.

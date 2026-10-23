@@ -314,8 +314,35 @@
 - id: malicious-dependency
   title: Malicious code in a dependency rather than the server's own package
   surface: supply-chain
-  status: gap
-  gap: Only the top-level package is analyzed; dependency trees are next (Phase 3).
+  status: partial
+  rules: [MCP-SRC-002, MCP-SRC-004, MCP-SRC-005]
+  tests: [zoo:dep-hijacked-npm, zoo:dep-hidden-payload-pypi]
+  gap: >-
+    The tree is resolved from registry metadata the way npx/uvx would, not installed: npm
+    lockfiles shipped in a package and hoisting differences aren't modeled, PyPI markers are
+    evaluated for the sandbox's CPython 3.12 on Linux, and resolution stops at 400 packages and
+    300 MB of archives per server. Docker images' contents aren't analyzed.
+
+- id: known-malicious-dependency
+  title: A dependency reported as malware or with known vulnerabilities (OSV)
+  surface: supply-chain
+  status: detected
+  rules: [MCP-SC-007]
+  tests: [test:tests/test_deps.py::test_enrich_checks_dependencies_against_osv]
+
+- id: hijacked-dependency
+  title: A dependency's latest release added install scripts or came from a new publisher
+  surface: supply-chain
+  status: detected
+  rules: [MCP-SC-008, MCP-SC-009]
+  tests: [zoo:dep-hijacked-npm]
+
+- id: dependency-confusion
+  title: A dependency name the registry doesn't have, or one fetched from git or a URL
+  surface: supply-chain
+  status: detected
+  rules: [MCP-SC-009]
+  tests: [zoo:dep-confusion]
 
 - id: repository-mismatch
   title: Published package contains code that isn't in its linked repository
@@ -402,9 +429,9 @@
   rules: [MCP-SRC-101, MCP-SRC-102, MCP-SRC-103, MCP-SRC-104]
   tests: [zoo:vulnerable-tools-py, zoo:vulnerable-tools-js, zoo:safe-tools]
   gap: >-
-    Taint is followed within a file and two calls deep, for handlers registered the MCP SDKs'
-    ways. Flows across files or through objects and callbacks aren't followed, and any
-    containment-looking check in the handler counts as one.
+    Taint is followed across the package's files, two calls deep, for handlers registered the
+    MCP SDKs' ways. Flows through objects, callbacks or instances other than self/this aren't
+    followed, and any containment-looking check along the way counts as one.
 
 # --- Runtime behavior ------------------------------------------------------------------------------
 

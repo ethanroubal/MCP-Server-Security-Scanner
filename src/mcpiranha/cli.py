@@ -248,7 +248,9 @@ def _describe_sources(targets: Targets, *, connected: bool) -> None:
             )
         )
     if looked_up := sum(bool(s.package and s.package.checked_at) for s in targets.snapshots):
-        out.print(Text(f"Checked {looked_up} package(s) against the registries and OSV.",
+        deps = sum(len(s.package.dependencies or []) for s in targets.snapshots if s.package)
+        also = f" and {deps} dependencies" if deps else ""
+        out.print(Text(f"Checked {looked_up} package(s){also} against the registries and OSV.",
                        style="dim"))  # fmt: skip
     if analyzed := [s.source for s in targets.snapshots if s.source]:
         files = sum(t.files for t in analyzed)
@@ -348,6 +350,14 @@ def scan(
     allow_network: AllowNetworkOpt = False,
     allow_install_scripts: AllowScriptsOpt = False,
     offline: OfflineOpt = False,
+    dependencies: Annotated[
+        bool,
+        typer.Option(
+            "--deps/--no-deps",
+            help="Also resolve each package's dependency tree and check it (OSV, install "
+            "scripts, hijack signals, and its code). On by default when online.",
+        ),
+    ] = True,
     fmt: FormatOpt = OutputFormat.TTY,
     output: OutputOpt = None,
     fail_on: Annotated[
@@ -390,7 +400,9 @@ def scan(
     )  # fmt: skip
     online = not (offline or supply.offline_by_default())
     if online:
-        targets.snapshots, lookup_warnings = anyio.run(supply.enrich, targets.snapshots)
+        targets.snapshots, lookup_warnings = anyio.run(
+            functools.partial(supply.enrich, targets.snapshots, dependencies=dependencies)
+        )
         for warning in lookup_warnings:
             _warn(warning)
         warnings = [*warnings, *lookup_warnings]

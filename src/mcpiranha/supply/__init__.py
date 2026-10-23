@@ -26,11 +26,12 @@ import httpx2
 
 from mcpiranha import __version__
 from mcpiranha.core.launch import package_ref
-from mcpiranha.core.models import PackageMeta, ServerSnapshot
-from mcpiranha.supply import osv
+from mcpiranha.core.models import PackageMeta, ServerSnapshot, Vulnerability
+from mcpiranha.supply import deps, osv
 from mcpiranha.supply.registry import NotFound, RegistryError, npm_meta, pypi_meta
 
 CACHE_SECONDS = 3600
+OSV_BATCH = 500  # querybatch takes up to 1000
 TIMEOUT = 30.0
 
 
@@ -46,6 +47,7 @@ def offline_by_default() -> bool:
 class Fetcher(Protocol):
     async def get(self, url: str, headers: dict[str, str]) -> Any: ...
     async def post(self, url: str, body: Any) -> Any: ...
+    async def archive(self, url: str, expected_hash: str) -> bytes: ...
 
 
 class Http:
@@ -94,6 +96,11 @@ class Http:
         key = f"POST {url} {json.dumps(body, sort_keys=True)}"
         return await self._cached(key, lambda: self._client.post(url, json=body))
 
+    async def archive(self, url: str, expected_hash: str) -> bytes:
+        from mcpiranha.supply.archives import download  # imports this module
+
+        return await download(self._client, url, expected_hash)
+
 
 @dataclass(frozen=True, slots=True)
 class Registries:
@@ -132,15 +139,19 @@ async def enrich(
     http: Fetcher | None = None,
     registries: Registries = PUBLIC,
     jobs: int = 8,
+    dependencies: bool = True,
 ) -> tuple[list[ServerSnapshot], list[str]]:
     """Snapshots with `package` filled in from the registries and OSV, plus warnings for packages
-    that couldn't be looked up (the scan goes on without them)."""
+    that couldn't be looked up (the scan goes on without them). With `dependencies`, each
+    package's dependency tree is resolved and checked too (supply/deps.py)."""
     if http is None:
         headers = {"User-Agent": f"mcpiranha/{__version__}"}
         async with httpx2.AsyncClient(timeout=TIMEOUT, headers=headers,
                                       follow_redirects=True) as client:  # fmt: skip
-            http = Http(client, cache_dir())
-            return await enrich(snapshots, http=http, registries=registries, jobs=jobs)
+            # registries given explicitly (the zoo's local ones) change between runs: no cache
+            http = Http(client, cache_dir() if registries == PUBLIC else None)
+            return await enrich(snapshots, http=http, registries=registries, jobs=jobs,
+                                dependencies=dependencies)  # fmt: skip
 
     out = list(snapshots)
     warnings: dict[int, str] = {}
@@ -151,6 +162,10 @@ async def enrich(
         async with limiter:
             try:
                 meta = await lookup(snapshot, http, registries)
+                ref = package_ref(snapshot.launch)
+                if dependencies and meta is not None and ref is not None:
+                    meta = await deps.resolve(meta, ref, http.get, http.archive,
+                                              npm=registries.npm, pypi=registries.pypi)  # fmt: skip
             except (RegistryError, httpx2.HTTPError, OSError) as exc:
                 warnings[i] = f"{snapshot.name}: registry lookup failed: {exc}"
                 return
@@ -162,12 +177,20 @@ async def enrich(
             group.start_soon(one, i, snapshot)
 
     order, now = sorted(found), datetime.now(UTC)
+    packages = [found[i] for i in order]
+    flat = deps.flatten(packages)  # every server package and every dependency
+    ask = [j for j, p in enumerate(flat) if p.version or p.removed]  # not git / URL ones
+    advisories: list[list[Vulnerability] | None] = [None] * len(flat)
     try:
-        advisories = await osv.vulnerabilities([found[i] for i in order], http.post, http.get)
+        for start in range(0, len(ask), OSV_BATCH):
+            chunk = ask[start : start + OSV_BATCH]
+            answers = await osv.vulnerabilities([flat[j] for j in chunk], http.post, http.get)
+            for j, vulns in zip(chunk, answers, strict=True):
+                advisories[j] = vulns
     except (RegistryError, httpx2.HTTPError, OSError) as exc:
-        advisories = [None] * len(order)
         warnings[len(out)] = f"OSV lookup failed, known vulnerabilities not checked: {exc}"
-    for i, vulns in zip(order, advisories, strict=True):
-        meta = found[i].model_copy(update={"vulnerabilities": vulns, "checked_at": now})
+    packages = deps.assign(packages, advisories, "vulnerabilities")
+    packages = deps.assign(packages, [now] * len(flat), "checked_at")
+    for i, meta in zip(order, packages, strict=True):
         out[i] = out[i].model_copy(update={"package": meta})
     return out, [warnings[k] for k in sorted(warnings)]

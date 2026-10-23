@@ -35,6 +35,7 @@ mcpiranha verify --connect          # exit 1 if anything changed or was added si
 mcpiranha inspect --connect <target>   # show the text the model reads, hidden characters revealed
 mcpiranha flows                     # each client's tool capabilities and the toxic flows between them
 mcpiranha scan --offline            # no registry / osv.dev lookups or package downloads
+mcpiranha scan --no-deps            # online, but skip dependency trees
 mcpiranha scan --classifier         # experimental: add the local ML classifier (pip install 'mcpiranha[ml]')
 mcpiranha bench                     # in a checkout: score against the zoo of known-bad servers
 ```
@@ -70,6 +71,17 @@ deprecated or yanked releases and names missing from the registry (which anyone 
 This sends package names and versions to those services; `--offline` (or
 `MCPIRANHA_OFFLINE=1`) turns it off. `MCPIRANHA_NPM_REGISTRY` / `MCPIRANHA_PYPI_INDEX` point
 at a mirror. Docker images aren't looked up yet.
+
+**Dependencies** get the same treatment (`--no-deps` turns it off): the tree npx/uvx would
+install is resolved from registry metadata (npm ranges and aliases; PyPI Requires-Dist with
+markers evaluated for the sandbox's Python), up to 400 packages, and every dependency is checked
+against OSV. **SC-007** reports known malicious (critical) or vulnerable dependencies, **SC-008**
+dependencies that run code at install (low; high when a release from the last 30 days just added
+it), **SC-009** suspicious ones: a name the registry doesn't have, a git or URL dependency, or a
+recent release with a new publisher or without the provenance its predecessor had. Install
+scripts' command lines are judged as executed commands, and the code of dependencies that run at
+install or look hijacked is read with the MCP-SRC rules (paths show `name@version/file`). Each
+finding names the chain that pulls the dependency in (`server > lib > leaf`).
 
 ### Source analysis
 
@@ -174,12 +186,12 @@ publisher or provenance alarms, one package with 159 advisories, two yanked or d
 releases, and one registry config that runs a PyPI name nobody owns. The source rules read
 19,000 files across their releases with no findings.
 
-Attacks are tested against [the zoo](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/zoo/README.md): 45 safe-by-construction
+Attacks are tested against [the zoo](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/zoo/README.md): 48 safe-by-construction
 malicious and vulnerable servers, configs and packages, including reconstructions of public
-incidents and hijacked or backdoored releases served from local registries. They're organized by
-a [threat catalog](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/zoo/threats.yaml) of 60 ways an MCP server can act maliciously, which a test
-keeps in sync with the rules: 51 are detected, 3 partly, and 6 are tracked gaps (tool output,
-dependency code, repository diffs, and runtime egress, file access and time bombs).
+incidents and hijacked or backdoored releases (and dependencies) served from local registries.
+They're organized by a [threat catalog](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/zoo/threats.yaml) of 63 ways an MCP server can act
+maliciously, which a test keeps in sync with the rules: 54 are detected, 4 partly, and 5 are
+tracked gaps (tool output, repository diffs, and runtime egress, file access and time bombs).
 
 ## Development
 

@@ -13,6 +13,8 @@ _DECODERS = frozenset({"b64decode", "b32decode", "b85decode", "a85decode", "urls
                        "decodebytes", "decompress", "fromhex", "unhexlify", "urlopen", "get",
                        "post", "request", "read_text", "rot13"})  # fmt: skip
 _RUNNERS = frozenset({"exec", "eval", "compile"})
+_SOCKET_CALLS = frozenset({"socket.socket", "socket.create_connection", "create_connection",
+                           "socket.socketpair"})  # fmt: skip
 
 
 def _name(node: ast.AST) -> str:
@@ -75,6 +77,8 @@ class _Visitor(ast.NodeVisitor):
         }
         self.written = _written_names(tree)
         self.executed = _names_passed_to(tree, patterns.EXEC_CALLS)
+        self.opens_socket = any(isinstance(n, ast.Call) and _name(n.func) in _SOCKET_CALLS
+                                for n in ast.walk(tree))  # fmt: skip
         self.sets_approval = bool(patterns.APPROVE_SETTING.search("\n".join(lines)))
 
     def hit(self, node: ast.AST, kind: SourceHitKind, detail: str) -> None:
@@ -109,8 +113,10 @@ class _Visitor(ast.NodeVisitor):
                      if isinstance(c, ast.Call)}  # fmt: skip
             if found := sorted(inner & (_DECODERS | {"loads"})):  # + marshal.loads
                 self.hit(node, "dynamic_code", f"{short}() of the result of {', '.join(found)}()")
-        # a socket wired to stdin/stdout: os.dup2(s.fileno(), 0)
-        if func in ("os.dup2", "dup2") and node.args and "fileno" in ast.dump(node.args[0]):
+        # a socket wired to stdin/stdout: os.dup2(s.fileno(), 0) in code that opens a socket
+        # (output capture in click and pytest dup2s file descriptors too)
+        if (func in ("os.dup2", "dup2") and node.args and "fileno" in ast.dump(node.args[0])
+                and self.opens_socket):  # fmt: skip
             self.hit(node, "reverse_shell", "connects a socket to the process's stdin/stdout")
         # rmtree / rm of the home directory or the filesystem root
         if (

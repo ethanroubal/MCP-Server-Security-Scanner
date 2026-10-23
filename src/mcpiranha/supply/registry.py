@@ -180,6 +180,20 @@ def _npm_release(version: str, data: dict[str, Any], times: dict[str, Any]) -> R
     )
 
 
+def _npm_requires(release: dict[str, Any]) -> dict[str, str]:
+    """What npm installs with this release: dependencies, optional ones (installed when they
+    build), and peer dependencies that aren't optional (installed automatically since npm 7)."""
+    out: dict[str, str] = {}
+    optional_peers = {k for k, v in obj(release.get("peerDependenciesMeta")).items()
+                      if obj(v).get("optional")}  # fmt: skip
+    for field in ("peerDependencies", "optionalDependencies", "dependencies"):
+        for name, spec in obj(release.get(field)).items():
+            if field == "peerDependencies" and name in optional_peers:
+                continue
+            out[str(name)] = str(spec)
+    return out
+
+
 async def npm_meta(
     ref: PackageRef, version: str | None, get: GetJson, registry: str | None = None
 ) -> PackageMeta:
@@ -200,13 +214,14 @@ async def npm_meta(
         raise RegistryError(f"npm has no release {version} of {ref.name}")
 
     current = _npm_release(version, releases[version], times)
-    stable = [v for v in releases if (sv := parse_semver(v)) and not sv[3]]
-    cutoff = current.published_at
-    published = sorted(
-        (t, v) for v in stable
-        if v != version and (t := _time(times.get(v))) and (cutoff is None or t < cutoff)
+    # The release before this one by version, not by date: projects maintain several lines at
+    # once (protobufjs 7.x and 8.x), and a 7.x release follows 8.8.0 in time.
+    mine = parse_semver(version)
+    lower = sorted(
+        (_key(sv), v) for v in releases
+        if (sv := parse_semver(v)) and not sv[3] and mine and _key(sv) < _key(mine)
     )  # fmt: skip
-    earlier = [v for _, v in published][-EARLIER_RELEASES:]
+    earlier = [v for _, v in lower][-EARLIER_RELEASES:]
     previous = _npm_release(earlier[-1], releases[earlier[-1]], times) if earlier else None
     publishers = [
         r.publisher for v in earlier if (r := _npm_release(v, releases[v], times)).publisher
@@ -225,6 +240,7 @@ async def npm_meta(
         earlier_publishers=list(dict.fromkeys(publishers)),
         archive_url=str(dist["tarball"]) if dist.get("tarball") else None,
         archive_hash=str(integrity) if integrity else None,
+        requires=_npm_requires(releases[version]),
     )  # fmt: skip
 
 
@@ -372,10 +388,15 @@ async def pypi_meta(
     if not sha256 and "#sha256=" in str(archive.get("url", "")):  # PEP 503 HTML pages
         archive["url"], sha256 = str(archive["url"]).split("#sha256=", 1)
     archive_hash = f"sha256:{sha256}" if sha256 else None
+    # PEP 658/714: the wheel's METADATA at <url>.metadata, so requirements don't need the wheel
+    core = archive.get("core-metadata", archive.get("data-dist-info-metadata"))
+    core_sha = obj(core).get("sha256")
+    metadata_hash = f"sha256:{core_sha}" if core_sha else None
     return PackageMeta(
         registry="pypi", name=ref.name, version=version, resolution=how,
         install_scripts=current.install_scripts, published_at=current.published_at,
         created_at=min(first) if first else None, provenance=current.provenance,
         provenance_source=current.provenance_source, previous=previous, yanked=yanked,
         archive_url=archive.get("url") or None, archive_hash=archive_hash,
+        metadata_hash=metadata_hash,
     )  # fmt: skip
