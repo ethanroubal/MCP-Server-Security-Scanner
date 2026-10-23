@@ -84,8 +84,16 @@ also has a way out, **SRC-004** running decoded, downloaded or obfuscated code, 
 hardcoded request catcher, tunnel or Discord webhook, **SRC-006** reverse shells, **SRC-007**
 miners, **SRC-008** persistence (writing shell profiles, LaunchAgents, cron), **SRC-009** writing
 MCP client configs, **SRC-010** wipers. Command strings only count when executed and config paths
-only when written, since deny-lists and installers are full of both. Taint analysis of tool
-handlers (command injection, path traversal, SSRF) is next.
+only when written, since deny-lists and installers are full of both.
+
+**Exploitable tool handlers** (taint analysis): tool arguments are followed from the handler
+(`server.tool(...)`, `registerTool`, `@mcp.tool()`, low-level `call_tool` handlers) through
+assignments and into functions across the package's files. **SRC-101** command injection,
+**SRC-102** SQL injection, **SRC-103** path traversal, **SRC-104** SSRF. Only input spliced into
+code the developer wrote counts: ``execSync(`git log ${branch}`)`` is reported, a shell tool
+running the `command` it's given is a capability (the toxic-flow rules cover that), not a bug.
+It flags the vulnerable releases of two servers with published command-injection CVEs, and
+stays quiet on their fixes.
 
 ### Server behavior during a session
 
@@ -166,13 +174,12 @@ publisher or provenance alarms, one package with 159 advisories, two yanked or d
 releases, and one registry config that runs a PyPI name nobody owns. The source rules read
 19,000 files across their releases with no findings.
 
-Attacks are tested against [the zoo](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/zoo/README.md): 42 safe-by-construction
-malicious servers, configs and packages, including reconstructions of public incidents and
-hijacked or backdoored releases served from local registries. They're organized by a
-[threat catalog](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/zoo/threats.yaml) of 60 ways an MCP server can act maliciously, which a test
-keeps in sync with the rules: 51 are detected, 2 partly, and 7 are tracked gaps (tool output,
-dependency code, repository diffs, handler taint analysis, and runtime egress, file access and
-time bombs).
+Attacks are tested against [the zoo](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/zoo/README.md): 45 safe-by-construction
+malicious and vulnerable servers, configs and packages, including reconstructions of public
+incidents and hijacked or backdoored releases served from local registries. They're organized by
+a [threat catalog](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/zoo/threats.yaml) of 60 ways an MCP server can act maliciously, which a test
+keeps in sync with the rules: 51 are detected, 3 partly, and 6 are tracked gaps (tool output,
+dependency code, repository diffs, and runtime egress, file access and time bombs).
 
 ## Development
 

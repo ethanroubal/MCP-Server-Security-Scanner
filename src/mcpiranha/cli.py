@@ -665,6 +665,8 @@ def bench(
                 _warn(f"{r.sample.name}: skipped, {r.skipped}")
             for weak in r.too_weak:
                 _warn(f"{r.sample.name}: severity too low: {weak}")
+            if r.forbidden:
+                _warn(f"{r.sample.name}: must not fire, but did: {', '.join(sorted(r.forbidden))}")
             if r.status == "gap-flagged":
                 _warn(f"{r.sample.name}: a known gap now gets findings; review it and move "
                       f"them to `expect` ({r.sample.gap})")  # fmt: skip

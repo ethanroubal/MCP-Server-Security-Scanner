@@ -265,7 +265,9 @@ Only when source is available (local path, git, or unpacked npm/PyPI tarball).
 Built first (MCP-SRC-001..010, see RULES.md): hidden-behavior detectors, because they close the gap no
 metadata rule can (postmark-mcp's BCC). `mcpiranha.source` reads local scripts and, online, the release's
 tarball/wheel in memory after checking its hash; Python via `ast`, JS/TS via tree-sitter (no Semgrep yet). Hits
-are stored on the snapshot (`SourceTree.hits`) so rescans stay offline. Taint analysis below is next.
+are stored on the snapshot (`SourceTree.hits`) so rescans stay offline. Taint analysis (MCP-SRC-101..104) is built too:
+handler arguments followed across the package's files, reporting input spliced into commands, SQL or URL hosts, or
+joined to a base directory without a containment check; whole-input pass-through is capability, not a finding.
 
 - **Taint analysis from tool arguments to sinks.** Sources = tool handler parameters (we know them precisely from the
   `registerTool` / `@mcp.tool()` call sites). Sinks: `child_process.exec`/`spawn({shell:true})`, `subprocess(shell=True)`,

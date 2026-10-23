@@ -10,6 +10,7 @@ uv run python calibration/report.py --run NAME      # REPORT.md + labels.yaml fo
 uv run python calibration/rescan.py --from NAME --to NAME-tuned   # rerun rules offline
 uv run python calibration/flows_review.py --run NAME   # cross-server flows on combined servers
 uv run python calibration/supply_review.py [--unpinned] [--source]  # MCP-SC (+ MCP-SRC) rules
+uv run python calibration/cve_recall.py                 # taint rules on releases with known CVEs
 ```
 
 - **build_targets.py** pages the official MCP registry, keeps the latest stdio packages (npm,
@@ -223,6 +224,32 @@ command strings now count only when passed to an exec call. Client-config writes
 are installers (argent, claude-flow / loki-mode, and the MCP SDK's own `mcp install` vendored by
 ha-mcp): MCP-SRC-009 reports them low, and high only when the code also sets auto-approve. After:
 those three low findings and nothing else.
+
+## 2026-10 run: taint analysis (MCP-SRC-101..104)
+
+Measured two ways, because zero findings on popular servers proves nothing by itself.
+
+**Recall on known vulnerabilities** (`cve_recall.py`): releases of real MCP servers with published
+command-injection CVEs, and the releases that fixed them. The first version missed both: the
+iOS simulator server runs commands through `execAsync = promisify(exec)` (TypeScript output:
+`(0, util_1.promisify)(...)`), and the Kubernetes server's handler (`index.js`) passes
+`request.params.arguments` to functions in other files that build `command += ...`. After adding
+exec aliases, `(0, mod.fn)` calls, `+=` and package-wide (cross-file) function lookup: **2/2
+vulnerable releases flagged, 2/2 fixes clean** (CVE-2025-53355, CVE-2025-52573).
+
+**Handlers found**: across the cached archives, 1,756 tool handlers in 76 of 138 (several
+versions per package, and packages with no MCP server code). Two registration styles were missed
+at first and added: a handler passed by name (`registerTool(name, config, execute)`) and one inside
+an object (`registerTool({ name, handler })`).
+
+**False positives** (`supply_review.py --source`, 84 archives, pinned and newest): one, in
+loki-mode's `loki_v10_status`. The tool rejects a `run_id` containing `/`, `\` or a leading
+`.` before a helper opens `os.path.join(RUNS, run_id, ...)`. Fixed: a containment check in any
+caller along the chain counts, and so does rejecting separators or `..`. After: **no MCP-SRC-1xx
+findings on the 84 packages**.
+
+What it doesn't follow: flows through objects, callbacks or class instances other than
+`this`/`self`, and anything past two calls; any check that looks like containment is trusted.
 
 ## Typosquat targets (MCP-XS-003)
 

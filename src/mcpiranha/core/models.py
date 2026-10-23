@@ -181,6 +181,11 @@ SourceHitKind = Literal[
     "client_config",  # writes another MCP client's config
     "destructive",  # rm -rf ~, rmtree(home)
     "obfuscated",  # javascript-obfuscator / PyArmor output
+    # taint: a tool argument spliced into code the developer wrote (source/taint.py)
+    "shell_injection",  # into a shell command string
+    "sql_injection",  # into a SQL string
+    "path_traversal",  # joined to a base directory without a containment check
+    "ssrf",  # into the host of a URL the server requests
 ]
 
 

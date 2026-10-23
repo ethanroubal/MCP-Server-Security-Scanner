@@ -1,0 +1,6 @@
+title: Python tools with command, SQL, path and host injection (source only, never launched)
+attack: vulnerable-handler
+connect: false
+servers:
+  repo-tools: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+expect: [MCP-SRC-101, MCP-SRC-102, MCP-SRC-103, MCP-SRC-104]

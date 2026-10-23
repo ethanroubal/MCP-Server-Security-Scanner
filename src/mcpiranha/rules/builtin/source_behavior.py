@@ -214,3 +214,62 @@ class Wiper(_SourceRule):
     what = "The code deletes the home directory, the filesystem root or disks"
     confidence = Confidence.HIGH
     remediation = "Don't run it. Check your backups if it already ran."
+
+
+# --- MCP-SRC-1xx: exploitable tool handlers (taint, source/taint_*.py) ---------------------------
+# Not malice: bugs that let whoever controls the model's input (a poisoned page, issue or email)
+# turn a tool call into an attack. Only input spliced into code the developer wrote counts; a
+# tool that runs whatever command or SQL it's given is a capability (MCP-TF), not injection.
+
+
+@register
+class CommandInjection(_SourceRule):
+    id = "MCP-SRC-101"
+    title = "Tool argument injected into a shell command"
+    default_severity = Severity.HIGH
+    kinds = ("shell_injection",)
+    what = "A tool argument reaches a shell command string"
+    remediation = (
+        "Pass arguments as a list without a shell (subprocess.run([...]), execFile), or quote "
+        "them (shlex.quote). Anyone who can steer the model can otherwise run commands."
+    )
+    references = ("https://cwe.mitre.org/data/definitions/78.html",)
+
+
+@register
+class SqlInjection(_SourceRule):
+    id = "MCP-SRC-102"
+    title = "Tool argument injected into a SQL query"
+    default_severity = Severity.HIGH
+    kinds = ("sql_injection",)
+    what = "A tool argument is built into a SQL string"
+    remediation = "Use parameterized queries (placeholders plus a parameters argument)."
+    references = ("https://cwe.mitre.org/data/definitions/89.html",)
+
+
+@register
+class PathTraversal(_SourceRule):
+    id = "MCP-SRC-103"
+    title = "Tool argument escapes its base directory"
+    default_severity = Severity.MEDIUM
+    kinds = ("path_traversal",)
+    what = "A tool argument is joined to a base directory without a containment check"
+    remediation = (
+        "Resolve the joined path and check it stays under the base (Path.is_relative_to, "
+        "path.relative not starting with '..'); `../` otherwise reaches any file."
+    )
+    references = ("https://cwe.mitre.org/data/definitions/22.html",)
+
+
+@register
+class ServerSideRequestForgery(_SourceRule):
+    id = "MCP-SRC-104"
+    title = "Tool argument chooses the host of a server request"
+    default_severity = Severity.MEDIUM
+    kinds = ("ssrf",)
+    what = "A tool argument sets the host of a URL the server requests"
+    remediation = (
+        "Allow-list hosts, and refuse private and link-local addresses (169.254.169.254, "
+        "localhost) before requesting; remote servers can otherwise be pointed at internal ones."
+    )
+    references = ("https://cwe.mitre.org/data/definitions/918.html",)

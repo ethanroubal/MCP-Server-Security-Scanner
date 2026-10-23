@@ -43,7 +43,7 @@ _WRITTEN_NAME = re.compile(
 
 
 @cache
-def _parser(kind: str) -> tree_sitter.Parser:
+def parser(kind: str) -> tree_sitter.Parser:
     language = {
         "js": tree_sitter_javascript.language,
         "ts": tree_sitter_typescript.language_typescript,
@@ -52,7 +52,7 @@ def _parser(kind: str) -> tree_sitter.Parser:
     return tree_sitter.Parser(tree_sitter.Language(language))
 
 
-def _walk(node: Node) -> Iterator[Node]:
+def walk(node: Node) -> Iterator[Node]:
     cursor = node.walk()
     while True:
         assert cursor.node is not None
@@ -66,29 +66,31 @@ def _walk(node: Node) -> Iterator[Node]:
                 break
 
 
-def _text(node: Node | None) -> str:
+def node_text(node: Node | None) -> str:
     return node.text.decode("utf-8", "replace") if node is not None and node.text else ""
 
 
-def _string_value(node: Node | None) -> str | None:
+def string_value(node: Node | None) -> str | None:
     """The value of a string literal (or a template without substitutions)."""
     if node is None or node.type not in ("string", "template_string"):
         return None
     if any(c.type == "template_substitution" for c in node.children):
         return None
-    return _text(node)[1:-1]
+    return node_text(node)[1:-1]
 
 
 def _key(node: Node | None) -> str:
     if node is None:
         return ""
-    value = _string_value(node)
-    return value if value is not None else _text(node)
+    value = string_value(node)
+    return value if value is not None else node_text(node)
 
 
-def _callee(call: Node) -> str:
+def callee_of(call: Node) -> str:
     func = call.child_by_field_name("function") or call.child_by_field_name("constructor")
-    text = _text(func)
+    text = node_text(func)
+    if text.startswith("(0,") and text.endswith(")"):  # TypeScript output: (0, mod_1.fn)(...)
+        text = text[3:-1].strip()
     return text if len(text) < 80 else ""
 
 
@@ -123,7 +125,7 @@ class _Analyzer:
         kind = node.type
         if kind == "pair":
             key, value = node.child_by_field_name("key"), node.child_by_field_name("value")
-            text = _string_value(value)
+            text = string_value(value)
             if text is not None and patterns.recipient(_key(key), text):
                 self.hit(node, "hardcoded_recipient", f"{_key(key)}: {text}")
         elif kind == "assignment_expression":
@@ -131,23 +133,23 @@ class _Analyzer:
             prop = left.child_by_field_name("property") if left is not None else None
             if left is not None and left.type == "subscript_expression":
                 prop = left.child_by_field_name("index")
-            text = _string_value(right)
+            text = string_value(right)
             if prop is not None and text is not None and patterns.recipient(_key(prop), text):
                 self.hit(node, "hardcoded_recipient", f"{_key(prop)} = {text}")
         elif kind in ("call_expression", "new_expression"):
             self.call(node)
         elif kind == "for_in_statement":
             right = node.child_by_field_name("right")
-            if _text(right) == "process.env":
+            if node_text(right) == "process.env":
                 self.env_enumeration(node, "loops over process.env")
         elif kind in ("string", "template_string"):
             self.string(node)
 
     def call(self, node: Node) -> None:
-        callee = _callee(node)
+        callee = callee_of(node)
         short = callee.rsplit(".", 1)[-1]
         args = node.child_by_field_name("arguments")
-        arg_text = _text(args)
+        arg_text = node_text(args)
         if callee == "JSON.stringify" and re.match(r"\(\s*process\.env\s*[,)]", arg_text):
             self.hit(node, "env_harvest", "serializes the whole environment (process.env)")
         elif callee in _ENUMERATE and re.match(r"\(\s*process\.env\s*\)", arg_text):
@@ -170,10 +172,10 @@ class _Analyzer:
                 return False
             current = parent
             if current.type in ("call_expression", "new_expression"):
-                if _callee(current).rsplit(".", 1)[-1] in calls:
+                if callee_of(current).rsplit(".", 1)[-1] in calls:
                     return True
             elif current.type == "variable_declarator":
-                return _text(current.child_by_field_name("name")) in self.executed
+                return node_text(current.child_by_field_name("name")) in self.executed
         return False
 
     def in_write(self, node: Node) -> bool:
@@ -185,15 +187,15 @@ class _Analyzer:
                 return False
             current = parent
             if current.type == "call_expression":
-                if _callee(current).rsplit(".", 1)[-1] in patterns.WRITE_CALLS:
+                if callee_of(current).rsplit(".", 1)[-1] in patterns.WRITE_CALLS:
                     return True
             elif current.type == "variable_declarator":
-                name = _text(current.child_by_field_name("name"))
+                name = node_text(current.child_by_field_name("name"))
                 return name in self.written
         return False
 
     def env_enumeration(self, node: Node, how: str) -> None:
-        context = _text(_statement(node))[:1000]
+        context = node_text(_statement(node))[:1000]
         # Values, not just names: listing which TOKEN variables exist is a diagnostic.
         if not ("Object.entries" in how or "Object.values" in how
                 or re.search(r"process\.env\s*\[", context)):  # fmt: skip
@@ -205,7 +207,7 @@ class _Analyzer:
 
     def string(self, node: Node) -> None:
         # Template literals: judge the literal parts (`https://webhook.site/${id}` still counts).
-        text = _text(node)[1:-1]
+        text = node_text(node)[1:-1]
         for kind, detail in patterns.string_hits(text):
             if kind not in patterns.NEEDS_EXEC or self.in_call(node, patterns.EXEC_CALLS):
                 self.hit(node, kind, detail)
@@ -228,9 +230,9 @@ def analyze(path: str, source: bytes) -> list[SourceHit]:
     kind = (
         "tsx" if path.endswith(".tsx") else "ts" if path.endswith((".ts", ".mts", ".cts")) else "js"
     )
-    tree = _parser(kind).parse(source)
+    tree = parser(kind).parse(source)
     analyzer = _Analyzer(path, source)
-    for node in _walk(tree.root_node):
+    for node in walk(tree.root_node):
         analyzer.visit(node)
     analyzer.finish(source.decode("utf-8", "replace"))
     return analyzer.hits

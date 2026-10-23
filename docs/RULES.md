@@ -75,7 +75,13 @@ Judged on what `mcpiranha.source` finds in a local script or the package's relea
 | MCP-SRC-008 | Code installs itself to run later (writes shell profiles, LaunchAgents, systemd, cron, git hooks) | ✅ |
 | MCP-SRC-009 | Code writes MCP client configs (low; high when it also sets auto-approve) | ✅ |
 | MCP-SRC-010 | Code wipes the home directory or the disk | ✅ |
-| MCP-SRC-1xx | Taint from tool arguments to command / path / URL / SQL sinks | planned |
+| MCP-SRC-101 | Tool argument injected into a shell command | ✅ |
+| MCP-SRC-102 | Tool argument injected into a SQL query | ✅ |
+| MCP-SRC-103 | Tool argument escapes its base directory (joined without a containment check) | ✅ |
+| MCP-SRC-104 | Tool argument chooses the host of a server request (SSRF) | ✅ |
+
+SRC-1xx are taint rules: input spliced into a command, query or URL host, or joined to a base
+directory, counts; input used whole (a shell tool's `command`) is a capability, not a finding.
 
 ## MCP-DY — Server behavior during a session
 Observed while listing (`--connect`): mcpiranha advertises sampling, elicitation and roots like a

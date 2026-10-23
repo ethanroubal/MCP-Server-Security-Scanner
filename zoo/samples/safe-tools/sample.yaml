@@ -1,0 +1,6 @@
+title: Safe twins of the vulnerable tools, and tools that pass input through by design
+attack: false-positive-guard
+connect: false
+servers:
+  repo-tools-safe: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
+forbid: [MCP-SRC-101, MCP-SRC-102, MCP-SRC-103, MCP-SRC-104]

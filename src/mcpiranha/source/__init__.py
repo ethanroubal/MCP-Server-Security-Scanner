@@ -29,7 +29,7 @@ import httpx2
 from mcpiranha import __version__
 from mcpiranha.core.launch import command_line
 from mcpiranha.core.models import ServerSnapshot, SourceHit, SourceTree
-from mcpiranha.source import javascript, python
+from mcpiranha.source import javascript, python, taint_javascript, taint_python
 from mcpiranha.supply import cache_dir
 
 PY = (".py",)
@@ -58,6 +58,16 @@ def analyze_files(files: Iterator[tuple[str, bytes]], root: str) -> SourceTree:
     hits: list[SourceHit] = []
     seen: set[tuple[str, str]] = set()
     count, languages, skipped = 0, set[str](), list[str]()
+    py_files: list[tuple[str, str]] = []
+    js_files: list[tuple[str, bytes]] = []
+
+    def keep(found: list[SourceHit]) -> None:
+        for h in found:
+            key = (h.kind, h.detail)  # one hit per distinct thing (bundles repeat code)
+            if key not in seen and len(hits) < MAX_HITS:
+                seen.add(key)
+                hits.append(h)
+
     for path, data in files:
         if len(data) > MAX_FILE:
             skipped.append(f"{path}: larger than {MAX_FILE // 2**20} MB")
@@ -65,15 +75,16 @@ def analyze_files(files: Iterator[tuple[str, bytes]], root: str) -> SourceTree:
         count += 1
         if path.endswith(PY):
             languages.add("py")
-            found = python.analyze(path, data.decode("utf-8", "replace"))
+            text = data.decode("utf-8", "replace")
+            py_files.append((path, text))
+            keep(python.analyze(path, text))
         else:
             languages.add("ts" if path.endswith((".ts", ".mts", ".cts", ".tsx")) else "js")
-            found = javascript.analyze(path, data)
-        for h in found:
-            key = (h.kind, h.detail)  # one hit per distinct thing (bundles repeat code)
-            if key not in seen and len(hits) < MAX_HITS:
-                seen.add(key)
-                hits.append(h)
+            js_files.append((path, data))
+            keep(javascript.analyze(path, data))
+    # taint crosses files: a handler in index.js, the exec in tools/run.js
+    keep(taint_python.analyze_package(py_files))
+    keep(taint_javascript.analyze_package(js_files))
     language = "py" if languages == {"py"} else "ts" if "ts" in languages else (
         "js" if languages else "other")  # fmt: skip
     return SourceTree(root=root, language=language, files=count, skipped=skipped, hits=hits)

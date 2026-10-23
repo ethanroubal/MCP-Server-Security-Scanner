@@ -398,8 +398,13 @@
 - id: handler-injection
   title: Tool arguments reach a shell, file path, URL or SQL query unchecked (exploitable server)
   surface: source
-  status: gap
-  gap: Taint analysis from tool handler arguments to sinks (Phase 3, next).
+  status: partial
+  rules: [MCP-SRC-101, MCP-SRC-102, MCP-SRC-103, MCP-SRC-104]
+  tests: [zoo:vulnerable-tools-py, zoo:vulnerable-tools-js, zoo:safe-tools]
+  gap: >-
+    Taint is followed within a file and two calls deep, for handlers registered the MCP SDKs'
+    ways. Flows across files or through objects and callbacks aren't followed, and any
+    containment-looking check in the handler counts as one.
 
 # --- Runtime behavior ------------------------------------------------------------------------------
 

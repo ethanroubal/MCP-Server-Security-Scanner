@@ -45,6 +45,8 @@ class Sample:
     attack: str
     servers: dict[str, dict[str, Any]]
     expect: frozenset[str]
+    # rules that must NOT fire: a safe twin of a vulnerable sample guards against false positives
+    forbid: frozenset[str] = frozenset()
     connect: bool = True
     gap: str | None = None
     source: str | None = None
@@ -89,7 +91,12 @@ class SampleResult:
         if self.sample.gap is not None:
             flagged = self.worst is not None and self.worst.rank >= Severity.MEDIUM.rank
             return "gap-flagged" if flagged else "gap"
-        return "fail" if self.missing or self.errors or self.too_weak else "pass"
+        failed = self.missing or self.errors or self.too_weak or self.forbidden
+        return "fail" if failed else "pass"
+
+    @property
+    def forbidden(self) -> frozenset[str]:
+        return self.found & self.sample.forbid
 
 
 def _substitute(value: Any, variables: dict[str, str]) -> Any:
@@ -114,8 +121,10 @@ def load_sample(directory: Path, python: str) -> Sample:
     if not isinstance(data.get("servers"), dict):
         raise SampleError(f"{path}: needs a `servers` mapping")
     expect: Any = data.get("expect") or []
-    if not isinstance(expect, list) or (not expect and not data.get("gap")):
-        raise SampleError(f"{path}: `expect` must list rule ids, or `gap` say why it can't")
+    forbid: Any = data.get("forbid") or []
+    if not isinstance(expect, list) or (not expect and not data.get("gap") and not forbid):
+        raise SampleError(f"{path}: `expect` must list rule ids, or `gap` say why it can't, "
+                          "or `forbid` list rules that must not fire")  # fmt: skip
     variables = {"PYTHON": python, "SAMPLE": str(directory.resolve())}
     servers = _substitute(data["servers"], variables)
     before = (
@@ -131,6 +140,7 @@ def load_sample(directory: Path, python: str) -> Sample:
         attack=str(data.get("attack", "")),
         servers=cast(dict[str, dict[str, Any]], servers),
         expect=frozenset(str(r) for r in cast(list[Any], expect)),
+        forbid=frozenset(str(r) for r in cast(list[Any], forbid)),
         connect=bool(data.get("connect", True)),
         gap=str(data["gap"]).strip() if data.get("gap") else None,
         source=str(data["source"]) if data.get("source") else None,

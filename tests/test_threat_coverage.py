@@ -32,8 +32,8 @@ RULES = {r.id for r in load_rules(plugins=False)} - OPT_IN_RULES
 def _expected(test: str) -> set[str] | None:
     """Rules a zoo sample or fixture must trigger; None for unit tests (they assert directly)."""
     kind, _, name = test.partition(":")
-    if kind == "zoo":
-        return set(SAMPLES[name].expect)
+    if kind == "zoo":  # a safe twin exercises the rules it forbids
+        return set(SAMPLES[name].expect) | set(SAMPLES[name].forbid)
     if kind == "fixture":
         return FIXTURES[name]
     return None
