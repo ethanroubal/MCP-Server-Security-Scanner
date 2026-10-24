@@ -85,7 +85,9 @@
   surface: metadata
   status: detected
   rules: [MCP-TP-004, MCP-TP-005]
-  tests: [zoo:schema-poisoning]
+  tests: [zoo:schema-poisoning,
+          test:tests/test_adversarial_matrix.py::test_attack_survives_relocation_and_disguise,
+          test:tests/test_adversarial_matrix.py::test_live_listing_and_offline_replay_preserve_structured_attacks]
 
 - id: server-instructions-poisoning
   title: Injection in the server's `instructions` (sent at initialize, often added to the system prompt)

@@ -186,8 +186,9 @@ def test_remote_server_without_auth(http_server: str) -> None:
     assert code == EXIT_OK  # medium is below the default --fail-on high
 
 
-def test_package_targets_need_connect() -> None:
-    assert runner.invoke(app, ["scan", "npm:some-package"]).exit_code == 2
+def test_only_executable_or_remote_targets_need_connect() -> None:
+    assert runner.invoke(app, ["scan", "npm:some-package", "--offline", "--no-lock"]).exit_code == 0
+    assert runner.invoke(app, ["scan", "docker:some-image"]).exit_code == 2
 
 
 def test_parallel_connections_keep_order() -> None:

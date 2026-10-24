@@ -4,7 +4,7 @@ Security scanner for Model Context Protocol (MCP) servers: tool poisoning, cross
 rug pulls, insecure configuration, vulnerable implementations and dangerous combinations of servers.
 It works fully offline. Design: [docs/ARCHITECTURE.md](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/docs/ARCHITECTURE.md).
 
-**Status: 0.2.0 plus unreleased phase 04.** 53 built-in rules (see [docs/RULES.md](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/docs/RULES.md)) run on client configs, snapshot
+**Status: 0.3.0.** 53 built-in rules (see [docs/RULES.md](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/docs/RULES.md)) run on client configs, snapshot
 files and, with `--connect`, on what servers actually serve. Toxic-flow analysis across servers
 is in; an experimental local classifier is optional; an LLM layer is planned.
 
@@ -25,7 +25,10 @@ mcpiranha scan                      # every MCP client config on this machine + 
 mcpiranha scan .mcp.json            # one config file (Claude, Cursor, VS Code, Windsurf formats)
 mcpiranha scan ./some-project       # a project's .mcp.json, .cursor/mcp.json, .vscode/mcp.json
 mcpiranha scan --connect            # also start/reach each server and check its tools, prompts, resources
-mcpiranha scan --connect npm:@scope/server@1.2.3   # vet a package before installing it
+mcpiranha scan npm:@scope/server@1.2.3   # inspect package source without executing it
+mcpiranha scan pypi:some-server==1.2.3   # inspect a PyPI wheel/sdist without installing it
+mcpiranha scan path:./server-source     # inspect source, even if the folder has MCP configs
+mcpiranha scan --connect npm:@scope/server@1.2.3   # also start/list it in the sandbox
 mcpiranha scan --connect https://mcp.example.com/mcp --oauth          # sign in (opens a browser)
 mcpiranha scan --connect https://mcp.example.com/mcp -H "Authorization: Bearer $TOKEN"
 mcpiranha scan --connect --strict   # CI: exit 2 if any server couldn't be checked
@@ -143,6 +146,22 @@ suppress:
     reason: Reviewed 2026-10; descriptions quote attack examples on purpose
 ```
 
+### Static inspection without execution
+
+`scan npm:<package>` and `scan pypi:<package>` resolve registry metadata, check advisories and
+inspect hash-verified release archives without installing the package, running install scripts
+or starting the server. Network access is used for metadata and archives; `--offline` disables
+those lookups. Tool metadata remains unknown until an explicit `--connect` scan. Docker images
+and remote URLs still require `--connect`.
+
+A `.py`, `.js` or `.ts` file (including supported variants) is read as source. A directory with
+no discovered MCP configuration is scanned as source; directories with configurations retain
+client discovery behavior. Use `path:<directory>` to explicitly inspect source in either case.
+Source traversal excludes dependency/test directories and does not follow child symlinks.
+Source-only paths have no launch configuration and reject `--connect`. Python parse failures
+and JavaScript/TypeScript recovery errors produce partial source coverage, preserving findings
+from files or syntax trees that could still be analyzed.
+
 ### Server selection and scan coverage
 
 Use `--server` to select an exact server name or stable ID before any connection, package
@@ -176,6 +195,11 @@ observations. Older snapshots remain readable and their coverage is inferred con
 JSON reports now use `schema_version: 2` with coverage under each server. SARIF stores it in
 `runs[].properties.coverage` and includes scan warnings in invocation notifications. Coverage
 does not change severity thresholds or the existing warning-based `--strict` behavior.
+Use `--require-coverage source` (repeatable) or policy `require_coverage: [source, package]`
+to exit 2 when required stages are partial, skipped, failed or unknown. Requirements apply to
+every selected server and cannot be suppressed as findings; no targets also fails a requirement.
+CLI requirements add to policy requirements. Saved completed evidence can satisfy a requirement;
+it does not imply a fresh connection or lookup.
 
 ### What `--connect` does
 
@@ -239,6 +263,9 @@ uv run mcpiranha inspect fixtures/metadata/unicode-tag-smuggling/snapshots.json
 uv run pytest                     # MCPIRANHA_DOCKER_TESTS=1 also runs a real Docker sandbox
 uv run ruff check . && uv run ruff format --check . && uv run pyright
 ```
+
+The [adversarial testing guide](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/docs/TESTING.md) explains the attack/disguise matrix, benign
+controls, live replay tests, runtime evidence checks and the limits of what they prove.
 
 ## Adding a rule
 

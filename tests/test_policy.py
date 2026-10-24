@@ -106,3 +106,45 @@ def test_strict_fails_when_a_server_could_not_be_checked(
     _policy(tmp_path, "strict: true\n")
     assert runner.invoke(app, base).exit_code == EXIT_ERROR
     assert runner.invoke(app, [*base, "--no-strict"]).exit_code == EXIT_OK
+
+
+@pytest.mark.parametrize("status", ["partial", "skipped", "failed", "unknown"])
+def test_required_coverage_cannot_be_suppressed(status: str) -> None:
+    from mcpiranha.core.models import CoverageCheck
+
+    result = _result()
+    result.servers[0].coverage["source"] = CoverageCheck.model_validate(
+        {"status": status, "reason": "fixture incomplete"}
+    )
+    policy = Policy.model_validate(
+        {
+            "require_coverage": ["source"],
+            "suppress": [{"rule_id": "*", "reason": "reviewed findings"}],
+        }
+    )
+    report = policy.apply(result)
+    assert report.findings == []
+    assert "required source coverage is incomplete" in report.errors[0]
+
+
+def test_invalid_coverage_stage_is_rejected(tmp_path: Path) -> None:
+    with pytest.raises(PolicyError):
+        Policy.load(_policy(tmp_path, "require_coverage: [typo]\n"))
+    bad_flag = runner.invoke(app, ["scan", str(POISONED), "--require-coverage", "typo"])
+    assert bad_flag.exit_code == EXIT_ERROR
+    assert "Invalid --require-coverage" in bad_flag.output
+
+
+def test_required_coverage_reports_errors_in_json_and_sarif(tmp_path: Path) -> None:
+    policy = _policy(tmp_path, "require_coverage: [source]\n")
+    for fmt in ("json", "sarif"):
+        result = runner.invoke(
+            app,
+            ["scan", str(POISONED), "--policy", str(policy), "--no-lock", "--no-strict", "-f", fmt],
+        )
+        assert result.exit_code == EXIT_ERROR, result.output
+        report = json.loads(result.stdout)
+        if fmt == "json":
+            assert "required source" in report["errors"][0]
+        else:
+            assert report["runs"][0]["invocations"][0]["executionSuccessful"] is False

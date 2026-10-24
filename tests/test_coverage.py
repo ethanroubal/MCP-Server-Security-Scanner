@@ -241,3 +241,19 @@ def test_source_download_failure_is_reported(monkeypatch: pytest.MonkeyPatch) ->
     assert warnings
     assert summarize(snapshots[0])["source"].status == "failed"
     assert "archive unavailable" in summarize(snapshots[0])["source"].reason
+
+
+@pytest.mark.parametrize(
+    "path,code",
+    [
+        ("bad.py", b"def invalid(:\n"),
+        ("bad.js", b"const x = ;"),
+        ("bad.ts", b"const x: = ;"),
+    ],
+)
+def test_parser_errors_cannot_claim_completed_source_coverage(path: str, code: bytes) -> None:
+    tree = source.analyze_files(iter([(path, code), ("good.py", b"value = 1\n")]), "fixture")
+    snapshot = snapshot_with_description("Weather.").model_copy(update={"source": tree})
+    check = summarize(snapshot)["source"]
+    assert check.status == "partial"
+    assert path in check.reason and "parse" in check.reason

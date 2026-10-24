@@ -1,6 +1,19 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — 2026-10-24
+
+- Inspect npm/PyPI metadata and verified source archives without `--connect`, installation,
+  install scripts or execution. Add direct source-file/directory targets and `path:` overrides.
+- Record Python parse failures and JavaScript/TypeScript recovery errors as partial coverage;
+  prune excluded source directories and do not follow child symlinks.
+- Add repeatable `--require-coverage` and policy `require_coverage` requirements. Incomplete
+  required evidence fails with exit 2 and remains visible in JSON/SARIF even with suppressions.
+
+
+- Add 501 adversarial/control tests covering text surfaces and disguises, runtime read
+  semantics, descriptor reuse, probe attribution, and live poisoned-listing/offline replay.
+- Detect payloads in nested schema examples/defaults/const/enum values and retained tools'
+  output schemas; the new matrix exposed 40 previously missed variants.
 
 - Add exact, repeatable `--server` and `--client` selection before acquisition across scan,
   lock, verify, inspect and flows. Reject unmatched selectors and scope lock verification.

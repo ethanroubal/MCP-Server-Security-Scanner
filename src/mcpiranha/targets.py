@@ -89,23 +89,33 @@ def package_target(target: str) -> ServerSnapshot:
 
 
 def resolve(target: str | None, cwd: Path, *, connect: bool = False) -> Targets:
-    """No target: every known client config plus project configs in `cwd`. A directory: its
-    project configs. A file: a client config or a snapshot file, detected from its contents.
-    With `connect`, also a package (npm:, pypi:, docker:) or a server URL."""
+    """Discover configs, load snapshots, or inspect local/package source without execution.
+
+    Config-less directories fall back to source; path: explicitly chooses source. Docker
+    images and remote server URLs require an authorized connection.
+    """
     if target is None:
         found = discover(project=cwd)
         return Targets(found.snapshots, found.files, warnings=found.errors)
+    if target.startswith("path:"):
+        if not target[5:]:
+            raise TargetError("path: requires a source file or directory")
+        return Targets([source_target(Path(target[5:]).expanduser())])
     if target.startswith(_NEEDS_CONNECT):
-        if not connect:
+        if not connect and not target.startswith(("npm:", "pypi:")):
             raise TargetError(f"scanning {target!r} means connecting to it: add --connect")
         return Targets([package_target(target)])
 
     path = Path(target).expanduser()
     if path.is_dir():
         found = discover_project(path)
+        if not found.files and not found.errors:
+            return Targets([source_target(path)])
         return Targets(found.snapshots, found.files, warnings=found.errors)
     if not path.is_file():
         raise TargetError(f"{target} does not exist")
+    if path.suffix in (".py", ".js", ".mjs", ".cjs", ".ts", ".mts", ".cts", ".tsx", ".jsx"):
+        return Targets([source_target(path)])
 
     try:
         data = loads(path.read_text(encoding="utf-8"))
@@ -140,3 +150,28 @@ def resolve(target: str | None, cwd: Path, *, connect: bool = False) -> Targets:
     if not found.files:
         raise TargetError("; ".join(found.errors) or f"{path} is not an MCP config file")
     return Targets(found.snapshots, found.files, warnings=found.errors)
+
+
+def source_target(path: Path) -> ServerSnapshot:
+    """Local source is data, never an executable launch configuration."""
+    path = path.resolve()
+    if not path.is_file() and not path.is_dir():
+        raise TargetError(f"source path {path} does not exist")
+    if path.is_file() and path.suffix not in (
+        ".py",
+        ".js",
+        ".mjs",
+        ".cjs",
+        ".ts",
+        ".mts",
+        ".cts",
+        ".tsx",
+        ".jsx",
+    ):
+        raise TargetError("source files must be Python, JavaScript or TypeScript")
+    return ServerSnapshot(
+        id=f"path:{path}",
+        name=path.name,
+        origin=Origin(kind="path", ref=str(path)),
+        tools_listed=False,
+    )

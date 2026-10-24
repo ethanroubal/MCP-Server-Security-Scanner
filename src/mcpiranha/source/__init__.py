@@ -15,6 +15,7 @@ judge it.
 from __future__ import annotations
 
 import io
+import os
 import re
 import tarfile
 import zipfile
@@ -99,12 +100,16 @@ def analyze_files(files: Iterator[tuple[str, bytes]], root: str, *,
             if path.endswith(PY):
                 languages.add("py")
                 text = data.decode("utf-8", "replace")
-                py_files.append((path, text))
-                keep(python.analyze(path, text))
+                before = len(skipped)
+                keep(python.analyze(path, text, skipped=skipped))
+                if len(skipped) == before:
+                    py_files.append((path, text))
+                else:
+                    count -= 1
             else:
                 languages.add("ts" if path.endswith((".ts", ".mts", ".cts", ".tsx")) else "js")
                 js_files.append((path, data))
-                keep(javascript.analyze(path, data))
+                keep(javascript.analyze(path, data, skipped=skipped))
     except SourceLimit as exc:
         skipped.append(str(exc))
     if taint:  # taint crosses files: a handler in index.js, the exec in tools/run.js
@@ -143,17 +148,36 @@ def _local_files(entry: Path) -> Iterator[tuple[str, bytes]]:
     project = next((d for d in [entry.parent, entry.parent.parent]
                     if any((d / m).exists() for m in _PROJECT_MARKERS)), None)  # fmt: skip
     if project is None or project == Path.home():
-        yield entry.name, entry.read_bytes()
+        yield entry.name, _read_file(entry)
         return
+    yield from _directory_files(project)
+
+
+def _read_file(path: Path) -> bytes:
+    with path.open("rb") as stream:
+        return stream.read(MAX_FILE + 1)  # oversized files are reported, never loaded wholesale
+
+
+def _directory_files(project: Path) -> Iterator[tuple[str, bytes]]:
     total = 0
-    for path in sorted(project.rglob("*")):
-        rel = path.relative_to(project).as_posix()
-        if path.suffix in PY + JS and path.is_file() and not _skip(rel):
-            data = path.read_bytes()
-            total += len(data)
-            if total > MAX_TOTAL:
-                raise SourceLimit("Source byte limit reached; remaining files not analyzed.")
-            yield rel, data
+    for base, directories, names in os.walk(project, followlinks=False):
+        directories[:] = sorted(
+            d for d in directories if d not in _SKIP_DIRS and not (Path(base) / d).is_symlink()
+        )
+        for name in sorted(names):
+            path = Path(base) / name
+            rel = path.relative_to(project).as_posix()
+            if (
+                path.suffix in PY + JS
+                and not path.is_symlink()
+                and path.is_file()
+                and not _skip(rel)
+            ):
+                data = _read_file(path)
+                total += len(data)
+                if total > MAX_TOTAL:
+                    raise SourceLimit("Source byte limit reached; remaining files not analyzed.")
+                yield rel, data
 
 
 # --- package archives -----------------------------------------------------------------------------
@@ -221,7 +245,21 @@ async def collect(
             package = snapshot.package
             try:
                 async with limiter:
-                    if (entry := local_entry(snapshot)) is not None:
+                    if snapshot.origin.kind == "path" and snapshot.launch is None:
+                        root = Path(snapshot.origin.ref)
+                        if not root.exists() and snapshot.source is not None:
+                            return  # portable saved evidence does not require the original checkout
+                        files = (
+                            _directory_files(root)
+                            if root.is_dir()
+                            else iter([(root.name, _read_file(root))])
+                        )
+                        tree = await anyio.to_thread.run_sync(
+                            lambda: analyze_files(
+                                files, str(root if root.is_dir() else root.parent)
+                            )
+                        )
+                    elif (entry := local_entry(snapshot)) is not None:
                         tree = await anyio.to_thread.run_sync(
                             lambda: analyze_files(_local_files(entry), str(entry.parent))
                         )

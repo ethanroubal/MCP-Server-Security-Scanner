@@ -226,11 +226,13 @@ class _Analyzer:
                                        detail=detail))  # fmt: skip
 
 
-def analyze(path: str, source: bytes) -> list[SourceHit]:
+def analyze(path: str, source: bytes, *, skipped: list[str] | None = None) -> list[SourceHit]:
     kind = (
         "tsx" if path.endswith(".tsx") else "ts" if path.endswith((".ts", ".mts", ".cts")) else "js"
     )
     tree = parser(kind).parse(source)
+    if tree.root_node.has_error and skipped is not None:
+        skipped.append(f"{path}: JavaScript/TypeScript parse errors; partial syntax tree analyzed")
     analyzer = _Analyzer(path, source)
     for node in walk(tree.root_node):
         analyzer.visit(node)

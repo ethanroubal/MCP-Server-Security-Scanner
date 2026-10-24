@@ -268,11 +268,14 @@ def _is_home_or_root(node: ast.AST) -> bool:
     )
 
 
-def analyze(path: str, text: str) -> list[SourceHit]:
-    """Hits in one Python file. Files that don't parse (Python 2, newer syntax) give none."""
+def analyze(path: str, text: str, *, skipped: list[str] | None = None) -> list[SourceHit]:
+    """Hits in one Python file; report unsupported/malformed syntax to the collector."""
     try:
         tree = ast.parse(text, filename=path)
-    except (SyntaxError, ValueError):
+    except (SyntaxError, ValueError) as exc:
+        if skipped is not None:
+            detail = exc.msg if isinstance(exc, SyntaxError) else str(exc)
+            skipped.append(f"{path}: Python parse failed: {detail}")
         return []
     visitor = _Visitor(path, text.splitlines(), tree)
     visitor.visit(tree)

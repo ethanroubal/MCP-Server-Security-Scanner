@@ -9,6 +9,7 @@ called; the malice is only in what they *show* the model.
 |---|---|
 | `poisoned.py` | Tool-poisoning description, an exfiltration parameter, plus a prompt and a resource |
 | `rug_pull.py` | Serves a clean tool on the first `tools/list`, a poisoned one on the second |
+| `structured_poison.py` | Inert structured-schema injection on the first listing, then clean metadata; omit `--malicious` for the clean twin |
 | `env_probe.py` | Puts the value of `PROBE_TOKEN` into its tool description, to check what env it got |
 | `http_open.py` | Streamable-HTTP server with no auth and a state-changing tool; port from argv |
 | `http_oauth.py` | Requires OAuth (built-in authorization server that approves every sign-in) or the token `static-test-token`; port from argv |

@@ -27,7 +27,14 @@ from typing import Any, Self
 import yaml
 from pydantic import Field, model_validator
 
-from mcpiranha.core.models import Finding, ScanResult, Severity, StrictModel, SuppressedFinding
+from mcpiranha.core.models import (
+    CoverageStage,
+    Finding,
+    ScanResult,
+    Severity,
+    StrictModel,
+    SuppressedFinding,
+)
 
 POLICY_FILE = ".mcpiranha.yaml"
 
@@ -71,6 +78,7 @@ class Suppression(StrictModel):
 class Policy(StrictModel):
     fail_on: Severity | None = None
     strict: bool = False
+    require_coverage: list[CoverageStage] = Field(default_factory=list[CoverageStage])
     suppress: list[Suppression] = Field(default_factory=list[Suppression])
 
     @classmethod
@@ -110,5 +118,20 @@ class Policy(StrictModel):
                 "findings": kept,
                 "suppressed": suppressed,
                 "warnings": [*result.warnings, *warnings],
+                "errors": [*result.errors, *coverage_errors(result, self.require_coverage)],
             }
         )
+
+
+def coverage_errors(result: ScanResult, required: Sequence[CoverageStage]) -> list[str]:
+    """Required evidence must be complete; optional skipped stages remain normal."""
+    if required and not result.servers:
+        return ["Required coverage cannot be established: no servers or source targets found."]
+    errors: list[str] = []
+    for server in result.servers:
+        for stage in dict.fromkeys(required):
+            check = server.coverage.get(stage)
+            if check is None or check.status != "completed":
+                detail = f"{check.status}: {check.reason}" if check else "unknown: no record"
+                errors.append(f"{server.name}: required {stage} coverage is incomplete ({detail})")
+    return errors

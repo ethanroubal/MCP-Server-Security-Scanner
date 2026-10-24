@@ -16,7 +16,7 @@ from typing import Annotated, Any, NoReturn, cast
 
 import anyio
 import typer
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
@@ -31,6 +31,7 @@ from mcpiranha.core.models import (
     CapabilityLabel,
     Category,
     CoverageCheck,
+    CoverageStage,
     ScanResult,
     ServerSnapshot,
     Severity,
@@ -71,8 +72,8 @@ class SandboxMode(StrEnum):
 TargetArg = Annotated[
     str | None,
     typer.Argument(
-        help="A client config file, a project directory, or a snapshot JSON file; with --connect "
-        "also npm:<pkg>, pypi:<pkg>, docker:<image> or a server URL. Omit to scan every MCP "
+        help="A client config, snapshot JSON, source file/directory, path:<source>, npm:<pkg>, "
+        "or pypi:<pkg>. Docker images and server URLs require --connect. Omit to scan every MCP "
         "client config on this machine plus the current project.",
         show_default=False,
     ),
@@ -256,6 +257,8 @@ def _targets(
         len(targets.snapshots) == 1 and targets.snapshots[0].origin.kind == "remote"
     ):
         _fail("--header only works with a single server URL as the target")
+    if connect and any(s.origin.kind == "path" and s.launch is None for s in targets.snapshots):
+        _fail("Source paths support static inspection only; use a client config to connect")
     if invoke and len(targets.snapshots) != 1:
         _fail("--invoke requires a single server target to avoid calling an unrelated tool")
     if dynamic and any(
@@ -301,6 +304,8 @@ def _describe_sources(targets: Targets, *, connected: bool) -> None:
         out.print("No MCP servers found.")
     elif unlisted:
         why = "see the warnings above" if connected else "add --connect to list them"
+        if all(s.origin.kind == "path" and s.launch is None for s in targets.snapshots):
+            why = "source-only targets have no server session"
         out.print(
             Text(
                 f"Tools weren't listed for {unlisted} server(s), so their tool metadata isn't "
@@ -479,6 +484,14 @@ def scan(
     ] = None,
     policy_file: PolicyOpt = None,
     strict: StrictOpt = None,
+    require_coverage: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--require-coverage",
+            help="Require a completed evidence stage (repeatable): "
+            "configuration, tools, source, package, dependencies, dynamic, invocation.",
+        ),
+    ] = None,
     lockfile: Annotated[
         Path | None,
         typer.Option(help=f"Lockfile to check for changes. Default: ./{LOCKFILE_NAME} if present."),
@@ -502,6 +515,10 @@ def scan(
     plugins: PluginsOpt = True,
 ) -> None:
     """Scan MCP servers for security issues."""
+    try:
+        required = TypeAdapter(list[CoverageStage]).validate_python(require_coverage or [])
+    except ValidationError:
+        _fail("Invalid --require-coverage stage; see scan --help for supported stages")
     targets, warnings = _targets(
         target, servers=server, clients=client, connect=connect, sandbox=sandbox,
         real_credentials=real_credentials,
@@ -564,6 +581,9 @@ def scan(
             lock = _load_lock(path)
 
     policy = _load_policy(policy_file)
+    policy = policy.model_copy(
+        update={"require_coverage": list(dict.fromkeys([*policy.require_coverage, *required]))}
+    )
     if save_snapshots:
         _save_snapshots(targets.snapshots, save_snapshots)
     rules = load_rules(plugins=plugins)
@@ -606,6 +626,8 @@ def lock(
     )  # fmt: skip
     if not targets.snapshots:
         _fail("no MCP servers found to lock")
+    if any(s.origin.kind == "path" and s.launch is None for s in targets.snapshots):
+        _fail("Source-only targets cannot be locked; use a server config or listed snapshot")
     lockfile = build_lockfile(targets.snapshots)
     lockfile.save(output)
     with_tools = sum(1 for s in lockfile.servers.values() if s.tools is not None)

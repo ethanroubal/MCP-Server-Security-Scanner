@@ -89,6 +89,8 @@ def iter_text_fields(snapshot: ServerSnapshot) -> Iterator[TextField]:
         base, loc = f"/earlier_tools/{i}", Location(server_id=snapshot.id, tool=tool.name)
         yield from _fields(tool, _ITEM_KEYS, loc, base)
         yield from _walk_schema(tool.input_schema, f"{base}/inputSchema", loc)
+        if tool.output_schema:
+            yield from _walk_schema(tool.output_schema, f"{base}/outputSchema", loc)
 
     for i, prompt in enumerate(snapshot.prompts):
         base, loc = f"/prompts/{i}", Location(server_id=snapshot.id, prompt=prompt.name)
@@ -108,6 +110,21 @@ def iter_text_fields(snapshot: ServerSnapshot) -> Iterator[TextField]:
         yield TextField(loc, _CONTENT_FIELD[item.kind], item.text)
 
 
+def _walk_values(node: Any, pointer: str, loc: Location, kind: FieldKind) -> Iterator[TextField]:
+    """Schema examples/defaults/enums can contain nested JSON data, not just strings.
+
+    Preserve the data's field kind even when a nested key looks like a schema keyword.
+    """
+    if isinstance(node, str):
+        yield TextField(_at(loc, pointer), kind, node)
+    elif isinstance(node, list):
+        for i, item in enumerate(cast(list[Any], node)):
+            yield from _walk_values(item, f"{pointer}/{i}", loc, kind)
+    elif isinstance(node, dict):
+        for key, value in cast(dict[str, Any], node).items():
+            yield from _walk_values(value, f"{pointer}/{pointer_token(key)}", loc, kind)
+
+
 def _walk_schema(node: Any, pointer: str, loc: Location) -> Iterator[TextField]:
     if isinstance(node, list):
         for i, item in enumerate(cast(list[Any], node)):
@@ -117,12 +134,12 @@ def _walk_schema(node: Any, pointer: str, loc: Location) -> Iterator[TextField]:
         return
     for key, value in cast(dict[str, Any], node).items():
         child = f"{pointer}/{pointer_token(key)}"
-        if key in _SCHEMA_TEXT_KEYS and isinstance(value, str):
+        if key in ("default", "const"):
+            yield from _walk_values(value, child, loc, _SCHEMA_TEXT_KEYS[key])
+        elif key in _SCHEMA_TEXT_KEYS and isinstance(value, str):
             yield TextField(_at(loc, child), _SCHEMA_TEXT_KEYS[key], value)
-        elif key in _SCHEMA_LIST_KEYS and isinstance(value, list):
-            for i, item in enumerate(cast(list[Any], value)):
-                if isinstance(item, str):
-                    yield TextField(_at(loc, f"{child}/{i}"), _SCHEMA_LIST_KEYS[key], item)
+        elif key in _SCHEMA_LIST_KEYS:
+            yield from _walk_values(value, child, loc, _SCHEMA_LIST_KEYS[key])
         else:
             if key == "properties" and isinstance(value, dict):
                 for name in cast(dict[str, Any], value):
