@@ -35,7 +35,7 @@ _DOCKER_VALUE_FLAGS = frozenset({
     "--cap-add", "--cap-drop", "--pid", "--ipc", "--uts", "--userns", "--platform", "-m",
     "--memory", "--cpus", "--add-host", "--device", "--security-opt", "--tmpfs", "--ulimit",
     "-h", "--hostname", "--runtime", "--restart", "--log-driver", "--log-opt", "--dns",
-    "--group-add", "--cgroupns", "--pull", "--stop-signal", "--shm-size", "--gpus",
+    "--pids-limit", "--group-add", "--cgroupns", "--pull", "--stop-signal", "--shm-size", "--gpus",
 })  # fmt: skip
 
 

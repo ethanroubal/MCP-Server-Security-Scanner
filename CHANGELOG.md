@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased
+
+- Add exact, repeatable `--server` and `--client` selection before acquisition across scan,
+  lock, verify, inspect and flows. Reject unmatched selectors and scope lock verification.
+- Report per-server evidence coverage, counts and skipped/incomplete reasons in terminal,
+  JSON (schema version 2), and SARIF; preserve saved coverage and surface SARIF warnings.
+- Record source byte-limit truncation as partial analysis instead of silently stopping.
+
+- Isolate validator imports from the scanned directory and PYTHONPATH; explicitly support
+  JSON Schema Draft 7, 2019-09 and 2020-12 without remote reference retrieval.
+
+- Track observed hard-link/rename aliases, duplicated/inherited descriptors, positive reads
+  and readable mappings of synthetic credentials. Keep read buffers out of traces and prefer
+  the strongest credential/canary evidence per phase or probe.
+- Validate baseline inputs offline in a bounded JSON Schema worker before invocation;
+  retain rejected baseline responses and stop further probes for that tool with a warning.
+
+- Preserve behavioral evidence when initialization crashes; keep strict scans incomplete.
+- Isolate tracing in a separate collector container behind a static launch gate, resolve
+  relative/directory-FD paths and split syscall records, and detect collector interference.
+- Correlate nested fuzz probes with output and behavioral canaries (MCP-DY-006/007); record
+  probe windows and status in snapshots. Add exact expected-destination classification,
+  visible external DNS queries, bounded observation delays, and adversarial Docker controls.
+
+- Add opt-in Docker behavioral scans: synthetic credential honeytokens, syscall tracing,
+  and a logging HTTP/HTTPS egress proxy with default denial.
+- Add named tool invocation, bounded deterministic fuzz inputs, and tool-output injection
+  scanning. Incomplete probes are visible in strict scans; invocation is never retried.
+- Add MCP-DY-003 through MCP-DY-005 and regression coverage for behavioral evidence.
+
+
 ## 0.2.0 — 2026-10-23
 
 `scan` now looks past what a server shows the model: the package it runs, the code inside it,

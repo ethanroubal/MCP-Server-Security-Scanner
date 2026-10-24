@@ -36,7 +36,7 @@ from mcp.client.streamable_http import streamable_http_client
 
 from mcpiranha.acquire.oauth import LoopbackCallback, OpenUrl, oauth_provider
 from mcpiranha.core.launch import PackageRef, command_line, docker_run, package_ref
-from mcpiranha.core.models import Launch, PackageMeta
+from mcpiranha.core.models import DynamicObservation, Launch, PackageMeta, ProbeRun
 
 Sandbox = Literal["docker", "none"]
 
@@ -115,17 +115,30 @@ async def _no_cleanup() -> None:
     return None
 
 
+async def _no_observations() -> list[DynamicObservation]:
+    return []
+
+
+async def _no_probe(probe: ProbeRun, started: bool) -> None:
+    return None
+
+
 @dataclass
 class Prepared:
     connect: Callable[[], Transport]  # a fresh transport per attempt (handshake fallback)
     label: str  # how the server is being run, for progress output
     cleanup: Callable[[], Awaitable[None]] = _no_cleanup
+    collect: Callable[[], Awaitable[list[DynamicObservation]]] = _no_observations
+    stop: Callable[[], Awaitable[None]] = _no_cleanup
+    phase_changed: Callable[[str], None] = lambda phase: None
     remote: bool = False
     sent_credentials: bool = False
     command: list[str] | None = None  # the full command line, for stdio servers
     resolved: PackageMeta | None = None  # the package version / image digest actually run
     # HTTP statuses a remote server answered with (the SDK reports 401s as a generic error).
     http_statuses: list[int] = field(default_factory=list[int])
+    containers: list[str] = field(default_factory=list[str])
+    probe_changed: Callable[[ProbeRun, bool], Awaitable[None]] = _no_probe
 
 
 # --- credentials ----------------------------------------------------------------------------------
@@ -364,14 +377,24 @@ async def _prepare_docker(
         await cleanup()
         raise
 
+    async def stop() -> None:
+        with anyio.CancelScope(shield=True):
+            for name in attempts:
+                with contextlib.suppress(SandboxError):
+                    await _docker("stop", "--time", "1", name, timeout=10)
+
+    command.insert(0, "docker")
+
     def connect() -> Transport:
         name = f"{container}-{len(attempts)}"
         attempts.append(name)
-        args = [name if arg == container else arg for arg in command]
+        args = [name if arg == container else arg for arg in command[1:]]
         params = StdioServerParameters(command="docker", args=args, env=get_default_environment())
         return stdio_client(params, errlog=errlog)
 
-    return Prepared(connect, label, cleanup, command=["docker", *command], resolved=resolved)
+    return Prepared(
+        connect, label, cleanup, stop=stop, command=command, resolved=resolved, containers=attempts
+    )
 
 
 # --- entry point ----------------------------------------------------------------------------------
@@ -439,3 +462,8 @@ async def prepare(
     )
     return Prepared(lambda: stdio_client(params, errlog=errlog), "on this machine, no sandbox",
                     command=[launch.command, *launch.args])  # fmt: skip
+
+
+async def docker(*args: str, timeout: float) -> str:
+    """Run a bounded Docker CLI operation for sandbox instrumentation."""
+    return await _docker(*args, timeout=timeout)

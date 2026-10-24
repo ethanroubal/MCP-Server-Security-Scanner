@@ -44,7 +44,9 @@ jobs:
       - name: Sandboxed scan of a real server
         env:
           MCPIRANHA_DOCKER_TESTS: "1"
-        run: uv run pytest -q tests/test_sandbox.py -k real_docker
+        run: >-
+          uv run pytest -q tests/test_sandbox.py tests/test_dynamic.py tests/test_dynamic_reliability.py
+          -k "real_docker or real_dynamic or real_adversarial"
       - name: Zoo supply-chain samples against local registries
         env:
           MCPIRANHA_ZOO_REGISTRIES: "1"

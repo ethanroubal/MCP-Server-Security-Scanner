@@ -111,9 +111,9 @@
 - id: tool-output-poisoning
   title: Injection in what a tool returns, only visible when it's called
   surface: runtime
-  status: gap
-  tests: [zoo:poisoned-tool-output]
-  gap: Needs tool calls with synthetic inputs in the sandbox (Phase 4, --invoke).
+  status: detected
+  rules: [MCP-TP-003, MCP-TP-004, MCP-TP-005]
+  tests: [zoo:poisoned-tool-output, test:tests/test_dynamic.py::test_tool_output_is_only_read_with_explicit_invocation]
 
 - id: description-behavior-mismatch
   title: A tool that does something other than its description says, with nothing hidden
@@ -426,8 +426,8 @@
   title: Tool arguments reach a shell, file path, URL or SQL query unchecked (exploitable server)
   surface: source
   status: partial
-  rules: [MCP-SRC-101, MCP-SRC-102, MCP-SRC-103, MCP-SRC-104]
-  tests: [zoo:vulnerable-tools-py, zoo:vulnerable-tools-js, zoo:safe-tools]
+  rules: [MCP-SRC-101, MCP-SRC-102, MCP-SRC-103, MCP-SRC-104, MCP-DY-006]
+  tests: [zoo:vulnerable-tools-py, zoo:vulnerable-tools-js, zoo:safe-tools, test:tests/test_dynamic_reliability.py::test_nested_fuzz_and_correlated_canaries]
   gap: >-
     Taint is followed across the package's files, two calls deep, for handlers registered the
     MCP SDKs' ways. Flows through objects, callbacks or instances other than self/this aren't
@@ -438,22 +438,24 @@
 - id: runtime-egress
   title: Server phones home or exfiltrates over the network at startup or when called
   surface: runtime
-  status: gap
-  gap: >-
-    The sandbox blocks the network (--network none) but doesn't report attempts; egress
-    monitoring with honeytokens is Phase 4.
+  status: partial
+  rules: [MCP-DY-004]
+  tests: [test:tests/test_dynamic.py::test_trace_rules_and_phases, test:tests/test_dynamic.py::test_real_dynamic_docker]
+  gap: Opt-in syscall tracing and proxy logs capture attempts and queried DNS names, not all exfiltration channels; requires a compatible Docker tracing runtime.
 
 - id: runtime-file-access
   title: Server reads files it has no reason to, at startup or when called
   surface: runtime
-  status: gap
-  gap: Needs syscall tracing in the sandbox (Phase 4).
+  status: partial
+  rules: [MCP-DY-003, MCP-DY-005, MCP-DY-007]
+  tests: [test:tests/test_dynamic.py::test_trace_rules_and_phases, test:tests/test_dynamic.py::test_real_dynamic_docker, test:tests/test_dynamic_reliability.py::test_trace_paths_split_records_and_interference, test:tests/test_dynamic_files.py::test_hardlink_and_rename_aliases_retain_identity_but_replacement_does_not]
+  gap: External tracing follows observed aliases/descriptors and readable mappings; unseen descriptor transfers, io_uring, mapping permission changes, namespace races and kernel-level evasion remain gaps.
 
 - id: conditional-trigger
   title: Malice that waits for a date, a host, a user or a number of calls
   surface: runtime
   status: gap
-  gap: Needs tool calls over time and tracing (Phase 4); source rules may still see the payload.
+  gap: Bounded invocation and tracing cannot guarantee activation of arbitrary time, host or identity triggers; source rules may still see the payload.
 
 # --- Attacks on the scanner itself ------------------------------------------------------------
 

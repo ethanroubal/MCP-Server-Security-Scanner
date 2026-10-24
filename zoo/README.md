@@ -37,7 +37,7 @@ Samples are safe by construction, which is why `bench` runs them on the host lik
 
 ## What's covered: the threat catalog
 
-[`threats.yaml`](threats.yaml) lists every way we know a malicious MCP server can act (60 so far),
+[`threats.yaml`](threats.yaml) lists every way we know a malicious MCP server can act (63 so far),
 grouped by where it shows up: metadata the model reads, other servers in the same client, changes
 over time, client configuration, requests the server sends the client, the supply chain, hidden
 behavior in the code, runtime behavior, and attacks on the scanner itself. Each entry names the
@@ -46,8 +46,8 @@ isn't detected yet and what will close it.
 
 `tests/test_threat_coverage.py` keeps it honest: every rule must be in the catalog and exercised
 by a test, every test it names must exist and expect its rules, and every gap must be explained.
-`mcpiranha bench` ends with the catalog's state (currently 54 detected, 4 partly, 5 not yet:
-tool output, repository diffs, and runtime egress, file access and time bombs).
+`mcpiranha bench` ends with the catalog's live coverage counts. Repository diffs and
+conditional runtime triggers remain gaps; opt-in egress/file tracing has partial coverage.
 
 Vulnerable (not malicious) servers sit next to safe twins: `safe-tools` lists rules that must not
 fire (`forbid:`), so a change that adds false positives fails the bench too.
@@ -71,7 +71,8 @@ source: https://...             # the incident or write-up it reconstructs, if a
 connect: true                   # false: config only, nothing launched
 servers:                        # client-config entries; installed together, as one client
   name: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
-expect: [MCP-TP-004]            # rules a correct scan must report
+expect: [MCP-TP-004]
+invoke: [get_forecast]           # optional: exact safe fixture tools to call            # rules a correct scan must report
 gap: Why it can't be detected yet, and what closes it   # instead of `expect`
 lookup: true                    # supply-chain sample: look packages up on npm/PyPI and OSV
 registries: {npm: "http://127.0.0.1:4873"}   # ...in these registries instead (implies lookup)

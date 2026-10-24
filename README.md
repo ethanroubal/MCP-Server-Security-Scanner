@@ -4,7 +4,7 @@ Security scanner for Model Context Protocol (MCP) servers: tool poisoning, cross
 rug pulls, insecure configuration, vulnerable implementations and dangerous combinations of servers.
 It works fully offline. Design: [docs/ARCHITECTURE.md](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/docs/ARCHITECTURE.md).
 
-**Status: 0.1.0.** 24 rules (see [docs/RULES.md](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/docs/RULES.md)) run on client configs, snapshot
+**Status: 0.2.0 plus unreleased phase 04.** 53 built-in rules (see [docs/RULES.md](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/docs/RULES.md)) run on client configs, snapshot
 files and, with `--connect`, on what servers actually serve. Toxic-flow analysis across servers
 is in; an experimental local classifier is optional; an LLM layer is planned.
 
@@ -143,10 +143,45 @@ suppress:
     reason: Reviewed 2026-10; descriptions quote attack examples on purpose
 ```
 
+### Server selection and scan coverage
+
+Use `--server` to select an exact server name or stable ID before any connection, package
+lookup or source acquisition. Repeat it to select several servers. `--client` narrows the
+selection to exact client identifiers such as `cursor` or `claude-desktop`:
+
+```bash
+mcpiranha scan --client cursor --server filesystem --connect
+mcpiranha scan .mcp.json --server search --connect --dynamic --invoke search
+mcpiranha scan .mcp.json --server search --server files --offline
+```
+
+Names shared by multiple clients select all matches; combine with `--client` or use the ID
+shown in terminal reports, JSON reports or `inspect` to disambiguate. Every selector must
+match, or the command exits 2 before acquisition. Repeated values are combined with OR;
+client and server selectors are combined with AND. Selection also works with `lock`,
+`verify`, `inspect` and `flows`. A selected `lock` writes only the selected servers; selected
+`verify` ignores removals outside that scope. Cross-server rules see only the selected servers,
+so scan the whole client configuration when checking interactions between servers.
+
+Each report includes per-server coverage for configuration, tool metadata, source, package
+and vulnerability lookups, dependencies, dynamic tracing, and explicit tool invocation.
+Statuses are `completed`, `partial`, `skipped`, `failed`, or `unknown`, with reasons and
+file/tool/dependency/call counts where applicable. A completed stage means evidence was
+collected within that stage's limits; it does not establish that the server is safe. An empty
+tool list is distinguished from tools that could not be listed. Tracing and invocation have
+separate statuses because either can run without the other.
+
+Saved snapshots retain coverage; reloaded records are labelled as saved evidence, not fresh
+observations. Older snapshots remain readable and their coverage is inferred conservatively.
+JSON reports now use `schema_version: 2` with coverage under each server. SARIF stores it in
+`runs[].properties.coverage` and includes scan warnings in invocation notifications. Coverage
+does not change severity thresholds or the existing warning-based `--strict` behavior.
+
 ### What `--connect` does
 
-It sends only listing requests (`initialize`, `tools/list`, `prompts/list`, `resources/list`);
-no tool is ever called. Tools are listed twice to catch servers that change them mid-session.
+It initializes the server, lists tools, prompts and resources, and fetches supported prompt
+bodies and static resource contents. Tool calls require explicit `--invoke` names. Tools are
+listed twice to catch servers that change them mid-session.
 
 - **stdio servers** run in a Docker sandbox by default. The package is downloaded with network
   access but without running any of its code (`npm install --ignore-scripts`, wheels only for
@@ -190,8 +225,9 @@ Attacks are tested against [the zoo](https://github.com/ethanroubal/MCP-Server-S
 malicious and vulnerable servers, configs and packages, including reconstructions of public
 incidents and hijacked or backdoored releases (and dependencies) served from local registries.
 They're organized by a [threat catalog](https://github.com/ethanroubal/MCP-Server-Security-Scanner/blob/main/zoo/threats.yaml) of 63 ways an MCP server can act
-maliciously, which a test keeps in sync with the rules: 54 are detected, 4 partly, and 5 are
-tracked gaps (tool output, repository diffs, and runtime egress, file access and time bombs).
+maliciously, which a test keeps in sync with the rules: 55 are detected, 6 partly, and 2 are
+tracked gaps (repository diffs and conditional runtime triggers). Runtime egress and file
+access have partial coverage through opt-in behavioral scanning.
 
 ## Development
 
@@ -216,3 +252,84 @@ uv run ruff check . && uv run ruff format --check . && uv run pyright
    fails on raw ones in the source.
 
 Third-party rule packs can register through the `mcpiranha.rules` entry-point group.
+
+## Behavioral scanning (phase 04)
+
+```bash
+# Observe startup/listing: seed synthetic credentials, trace syscalls, log/deny egress.
+uv run mcpiranha scan npm:@acme/server@1.2.3 --connect --dynamic --strict
+
+# Explicitly call one named tool. Annotations never authorize invocation.
+uv run mcpiranha scan npm:@acme/server@1.2.3 --connect --dynamic \
+  --invoke lookup --invoke-args '{"query":"mcpiranha-test"}' --save-snapshots ./captures
+
+# Add traversal, shell-marker and reserved-address SSRF inputs (maximum 24 calls/server).
+uv run mcpiranha scan npm:@acme/server@1.2.3 --connect --dynamic \
+  --invoke lookup --invoke-args '{"query":"mcpiranha-test"}' --fuzz
+```
+
+`--dynamic` requires a Linux Docker runtime with compatible architecture and support for
+sharing a container's PID namespace and attaching strace. It builds a cached trusted helper
+image (network needed for the first build). A static launcher seeds the synthetic HOME and
+waits until a separate collector attaches, then starts the server. The server runs as UID 1000
+without capabilities and mounts only read-only package/launcher volumes. Only the trusted
+collector receives `SYS_PTRACE`; its private trace volume is never mounted in the server.
+Untrusted server images are never used as build bases or run during helper setup.
+
+The server joins an internal network; a separate HTTP/HTTPS proxy logs destinations and denies
+requests. With `--allow-network`, that proxy forwards HTTP/HTTPS, including CONNECT for TLS.
+Clients ignoring proxy environment variables cannot directly reach the Internet. The proxy
+records destinations, never headers or bodies; it does not decrypt TLS.
+
+The synthetic HOME contains fake SSH, AWS, dotenv and browser-cookie files. Successful opens
+for reading during startup/listing produce critical findings. The sensor also follows positive
+reads through observed duplicated/inherited descriptors, readable file mappings, and observed
+hard-link and rename aliases (including renamed directories). Descriptor close/reuse and
+close-on-exec state are tracked. Read buffers are not decoded: evidence contains addresses
+and byte counts. A readable mapping is reported as a mapping, not proof its pages were read.
+Reports prefer the strongest evidence for a credential within each phase/probe window.
+Syscall tracing handles absolute and relative paths, directory file descriptors, forked
+working directories, split syscall records, DNS queries and process execution. Attempts to signal or trace the protected collector
+produce MCP-DY-007 findings. Evidence is retained even when initialization crashes, while the
+scan remains incomplete (`--strict` exits 2). Trace limits, unsupported runtimes, unobserved
+syscalls and conditional triggers remain coverage limits; a clean scan is not proof of safety.
+The default scan remains static.
+
+`--invoke NAME` is repeatable and requires exactly one server target. It can cause side effects
+even if a server labels its tool read-only. Bounded required objects, arrays and local schema
+references can be generated; unsupported constraints require `--invoke-args` as a JSON object.
+Generated and explicit baseline arguments are checked against JSON Schema Draft 7, 2019-09
+or 2020-12 before any tool call. Validation runs offline in a separate worker with a two-second wall limit, bounded
+input/depth/size, and Linux CPU/memory limits. External references are never fetched; costly
+or unsupported schemas fail the probe visibly. Format annotations are not asserted. A server
+rejecting a valid baseline makes the scan incomplete and stops further probes for that tool;
+the response is retained. `--fuzz` deliberately permits mutations outside schema constraints,
+mutates nested string values, and makes at most 24 calls per server.
+A separate nonsensitive traversal canary lives at `/tmp/mcpiranha-canary`. Each call has a probe
+ID, variant, argument path, status and time window. Saved snapshots link outputs and behavioral
+observations to those probe IDs. MCP-DY-006 flags canary access during a matching fuzz window;
+this temporal association does not establish causality or unauthorized behavior. Tool text and
+structured results also pass through the existing poisoning detectors. Failed or truncated
+probes produce warnings; the scanner never replays a call after invocation begins.
+
+Declare expected destinations explicitly to distinguish normal traffic from unknown endpoints:
+
+```bash
+uv run mcpiranha scan npm:@acme/server@1.2.3 --connect --dynamic \
+  --expected-destination api.example.com:443 --observe-seconds 5 --strict
+```
+
+`--expected-destination` is repeatable and matches an exact normalized host:port across the scan.
+It keeps matching network activity as informational findings; it does **not** permit egress,
+verify a destination's safety, suppress unknown destinations, or lower credential-access findings.
+DNS queries use host:53 entries. Only the proxy hop and its internal hostname lookup are treated
+as infrastructure; other DNS queries remain visible. `--observe-seconds` accepts 0–30 seconds
+within the server timeout. Delayed observations outside a call window remain unassigned rather
+than being attributed to a completed probe. Explicit invocation also works over remote
+transports and the existing `--sandbox none` mode, without local syscall tracing.
+
+Run the safe Docker regression with:
+
+```bash
+MCPIRANHA_DOCKER_TESTS=1 uv run pytest -q tests/test_dynamic*.py
+```

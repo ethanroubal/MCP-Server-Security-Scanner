@@ -205,9 +205,10 @@ class FetchedContent(StrictModel):
     requests it sent the client. Kept apart from the definitions: it may change legitimately,
     so it's scanned but not locked."""
 
-    kind: Literal["prompt", "resource", "log", "sampling", "elicitation"]
+    kind: Literal["prompt", "resource", "log", "sampling", "elicitation", "tool"]
     ref: str  # prompt name, resource URI, logger name, or the request kind
     text: str
+    probe_id: str | None = None
 
 
 class SourceTree(StrictModel):
@@ -275,7 +276,11 @@ class PackageMeta(StrictModel):
 
 class DynamicObservation(StrictModel):
     kind: Literal[
+        "trace_tamper",  # attempted interference with the trusted collector
+        "probe_error",  # invocation/tracing was incomplete
         "file_open",
+        "file_alias",  # observed link/rename of a synthetic file
+        "file_access",  # positive read or readable file mapping
         "net_connect",
         "dns_lookup",
         "process_spawn",
@@ -288,11 +293,47 @@ class DynamicObservation(StrictModel):
     phase: Literal["startup", "listing", "invocation"]
     detail: str
     at: datetime | None = None
+    tool: str | None = None
+    probe_id: str | None = None
+    path: str | None = None  # resolved syscall path, when available
+    success: bool | None = None
+    readable: bool | None = None
+    syscall: str | None = None
+    honeytoken: str | None = None  # known synthetic identity, including observed aliases
+    byte_count: int | None = None
+    destination: str | None = None  # exact host:port, bracketed for IPv6
+    expected: bool = False  # operator-declared destination; never server-declared
+    infrastructure: bool = False  # the proxy hop / Docker's internal resolver
+
+
+class ProbeRun(StrictModel):
+    id: str
+    tool: str
+    variant: Literal["baseline", "path_traversal", "shell_injection", "ssrf"]
+    argument_path: str | None = None
+    started_at: datetime
+    finished_at: datetime | None = None
+    status: Literal["running", "completed", "error", "interrupted"] = "running"
+    result_error: bool = False
+    schema_valid: bool | None = None
 
 
 class Hashes(StrictModel):
     tools: dict[str, str]  # tool name -> sha256 of its canonical wire JSON
     manifest: str  # sha256 over server info, tools, prompts and resources
+
+
+CoverageStage = Literal[
+    "configuration", "tools", "source", "package", "dependencies", "dynamic", "invocation"
+]
+
+
+class CoverageCheck(StrictModel):
+    """Evidence collected for a stage, not a guarantee that a server is safe."""
+
+    status: Literal["completed", "partial", "skipped", "failed", "unknown"]
+    reason: str
+    count: int | None = Field(default=None, ge=0)
 
 
 class ServerSnapshot(StrictModel):
@@ -315,6 +356,8 @@ class ServerSnapshot(StrictModel):
     package: PackageMeta | None = None
     observations: list[DynamicObservation] = []
     content: list[FetchedContent] = []
+    probes: list[ProbeRun] = []
+    coverage: dict[CoverageStage, CoverageCheck] = {}
 
     def hashes(self) -> Hashes:
         """Computed on demand rather than stored, so it can never go stale."""
@@ -369,6 +412,7 @@ class SuppressedFinding(StrictModel):
 
 
 class ScannedServer(StrictModel):
+    coverage: dict[CoverageStage, CoverageCheck] = {}
     id: str
     name: str
     origin: Origin
@@ -379,7 +423,7 @@ class ScannedServer(StrictModel):
 class ScanResult(StrictModel):
     """The top-level JSON report. `schema_version` changes whenever this shape changes."""
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     scanner_version: str
     started_at: datetime
     servers: list[ScannedServer]

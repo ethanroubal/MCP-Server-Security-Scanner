@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 
 from mcpiranha import __version__
+from mcpiranha.core.coverage import summarize
 from mcpiranha.core.lockfile import Lockfile
 from mcpiranha.core.models import Finding, ScannedServer, ScanResult, ServerSnapshot
 from mcpiranha.rules.base import Rule, RuleContext
@@ -43,7 +44,12 @@ def scan(
         started_at=started_at,
         servers=[
             ScannedServer(
-                id=s.id, name=s.name, origin=s.origin, hashes=s.hashes(), package=s.package
+                id=s.id,
+                name=s.name,
+                origin=s.origin,
+                hashes=s.hashes(),
+                package=s.package,
+                coverage=summarize(s),
             )
             for s in snapshots
         ],

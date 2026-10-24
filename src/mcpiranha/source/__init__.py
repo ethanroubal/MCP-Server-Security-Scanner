@@ -26,8 +26,16 @@ import anyio.to_thread
 import httpx2
 
 from mcpiranha import __version__
+from mcpiranha.core.coverage import record, summarize
 from mcpiranha.core.launch import command_line
-from mcpiranha.core.models import PackageMeta, ServerSnapshot, SourceHit, SourceHitKind, SourceTree
+from mcpiranha.core.models import (
+    CoverageCheck,
+    PackageMeta,
+    ServerSnapshot,
+    SourceHit,
+    SourceHitKind,
+    SourceTree,
+)
 from mcpiranha.source import javascript, patterns, python, taint_javascript, taint_python
 from mcpiranha.supply.archives import ArchiveError
 from mcpiranha.supply.archives import download as _download
@@ -57,6 +65,10 @@ _RUNNERS = frozenset({"python", "python3", "node", "bun", "deno", "tsx", "ts-nod
 SourceError = ArchiveError  # what a failed download raises
 
 
+class SourceLimit(Exception):
+    """A source input budget was reached; keep the evidence already collected."""
+
+
 def _skip(path: str) -> bool:
     parts = PurePosixPath(path).parts
     return any(p in _SKIP_DIRS for p in parts[:-1]) or path.endswith((".d.ts", ".map"))
@@ -78,20 +90,23 @@ def analyze_files(files: Iterator[tuple[str, bytes]], root: str, *,
                 seen.add(key)
                 hits.append(h)
 
-    for path, data in files:
-        if len(data) > MAX_FILE:
-            skipped.append(f"{path}: larger than {MAX_FILE // 2**20} MB")
-            continue
-        count += 1
-        if path.endswith(PY):
-            languages.add("py")
-            text = data.decode("utf-8", "replace")
-            py_files.append((path, text))
-            keep(python.analyze(path, text))
-        else:
-            languages.add("ts" if path.endswith((".ts", ".mts", ".cts", ".tsx")) else "js")
-            js_files.append((path, data))
-            keep(javascript.analyze(path, data))
+    try:
+        for path, data in files:
+            if len(data) > MAX_FILE:
+                skipped.append(f"{path}: larger than {MAX_FILE // 2**20} MB")
+                continue
+            count += 1
+            if path.endswith(PY):
+                languages.add("py")
+                text = data.decode("utf-8", "replace")
+                py_files.append((path, text))
+                keep(python.analyze(path, text))
+            else:
+                languages.add("ts" if path.endswith((".ts", ".mts", ".cts", ".tsx")) else "js")
+                js_files.append((path, data))
+                keep(javascript.analyze(path, data))
+    except SourceLimit as exc:
+        skipped.append(str(exc))
     if taint:  # taint crosses files: a handler in index.js, the exec in tools/run.js
         keep(taint_python.analyze_package(py_files))
         keep(taint_javascript.analyze_package(js_files))
@@ -137,7 +152,7 @@ def _local_files(entry: Path) -> Iterator[tuple[str, bytes]]:
             data = path.read_bytes()
             total += len(data)
             if total > MAX_TOTAL:
-                return
+                raise SourceLimit("Source byte limit reached; remaining files not analyzed.")
             yield rel, data
 
 
@@ -159,7 +174,9 @@ def archive_files(data: bytes, name: str) -> Iterator[tuple[str, bytes]]:
                         continue
                     total += info.file_size
                     if total > MAX_TOTAL:
-                        return
+                        raise SourceLimit(
+                            "Source byte limit reached; remaining files not analyzed."
+                        )
                     yield info.filename, archive.read(info)
         return
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as archive:
@@ -167,7 +184,9 @@ def archive_files(data: bytes, name: str) -> Iterator[tuple[str, bytes]]:
         for member in archive:
             unpacked += member.size
             if unpacked > MAX_UNPACKED:
-                return
+                raise SourceLimit(
+                    "Archive unpacked byte limit reached; remaining files not analyzed."
+                )
             if not member.isfile() or not member.name.endswith(PY + JS):
                 continue
             path = member.name.split("/", 1)[-1]  # "package/..." (npm), "name-1.0/..." (sdist)
@@ -178,7 +197,7 @@ def archive_files(data: bytes, name: str) -> Iterator[tuple[str, bytes]]:
                 continue
             total += member.size
             if total > MAX_TOTAL:
-                return
+                raise SourceLimit("Source byte limit reached; remaining files not analyzed.")
             extracted = archive.extractfile(member)
             if extracted is not None:
                 yield path, extracted.read()
@@ -216,14 +235,35 @@ async def collect(
                             lambda: analyze_files(archive_files(data, name), root)
                         )
                     else:
+                        if snapshot.source is None:
+                            out[i] = record(
+                                snapshot,
+                                "source",
+                                CoverageCheck(
+                                    status="skipped",
+                                    reason=(
+                                        "Offline; no local or saved source evidence."
+                                        if not download
+                                        else "No supported local source or verified archive."
+                                    ),
+                                ),
+                            )
                         return
             except (SourceError, httpx2.HTTPError, OSError, tarfile.TarError,
                     zipfile.BadZipFile) as exc:  # fmt: skip
                 warnings.append(f"{snapshot.name}: source not analyzed: {exc}")
+                out[i] = record(
+                    snapshot,
+                    "source",
+                    CoverageCheck(status="failed", reason=f"Source analysis failed: {exc}"),
+                )
                 return
             if package is not None:
                 tree = await _with_dependencies(tree, package, client, download=download)
-            out[i] = snapshot.model_copy(update={"source": tree})
+            collected = snapshot.model_copy(update={"source": tree})
+            # Refresh this stage, rather than retaining a previous snapshot's status.
+            check = summarize(collected.model_copy(update={"coverage": {}}))["source"]
+            out[i] = record(collected, "source", check)
 
         async with anyio.create_task_group() as group:
             for i, snapshot in enumerate(snapshots):
@@ -329,6 +369,7 @@ async def _with_dependencies(
                         lambda: analyze_files(wanted, dep.name, taint=False)
                     )
                 files += sub.files
+                skipped.extend(f"{prefix}{reason}" for reason in sub.skipped)
                 # Library code is full of features that look like malice out of context (shell
                 # completion writing ~/.bashrc, dup2 in output capture): a dependency's code
                 # counts when it runs at install, when the release looks hijacked, or when the
@@ -348,6 +389,6 @@ async def _with_dependencies(
             f"dependencies: stopped downloading after {MAX_DEPENDENCY_BYTES // 2**20} MB"
         )
     unique = list({(h.kind, h.file, h.detail): h for h in hits}.values())[:MAX_HITS_WITH_DEPS]
-    if len(unique) == len(tree.hits) and files == tree.files:
+    if len(unique) == len(tree.hits) and files == tree.files and skipped == tree.skipped:
         return tree
     return tree.model_copy(update={"hits": unique, "files": files, "skipped": skipped})

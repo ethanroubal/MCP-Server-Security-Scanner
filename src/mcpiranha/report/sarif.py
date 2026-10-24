@@ -127,11 +127,26 @@ def render(result: ScanResult, rules: Sequence[Rule], base: Path | None = None) 
                     }
                 },
                 "results": results,
+                "properties": {
+                    "coverage": [
+                        {
+                            "serverId": s.id,
+                            "serverName": s.name,
+                            "stages": {k: v.model_dump(mode="json") for k, v in s.coverage.items()},
+                        }
+                        for s in result.servers
+                    ],
+                },
                 "invocations": [
                     {
                         "executionSuccessful": not result.errors,
                         "toolExecutionNotifications": [
-                            {"level": "error", "message": {"text": e}} for e in result.errors
+                            {"level": level, "message": {"text": reveal(message)}}
+                            for level, messages in (
+                                ("error", result.errors),
+                                ("warning", result.warnings),
+                            )
+                            for message in messages
                         ],
                     }
                 ],

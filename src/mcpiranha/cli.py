@@ -7,11 +7,12 @@ Exit codes: 0 = no findings at or above --fail-on, 1 = findings at or above --fa
 from __future__ import annotations
 
 import functools
+import json
 import re
 import sys
 from enum import StrEnum
 from pathlib import Path
-from typing import Annotated, NoReturn
+from typing import Annotated, Any, NoReturn, cast
 
 import anyio
 import typer
@@ -24,8 +25,16 @@ from mcpiranha import __version__, source, supply
 from mcpiranha import bench as bench_mod
 from mcpiranha.acquire import ConnectOptions, connect_all
 from mcpiranha.acquire.oauth import open_in_browser
+from mcpiranha.core.coverage import record
 from mcpiranha.core.lockfile import LOCKFILE_NAME, Lockfile, build_lockfile
-from mcpiranha.core.models import CapabilityLabel, Category, ScanResult, ServerSnapshot, Severity
+from mcpiranha.core.models import (
+    CapabilityLabel,
+    Category,
+    CoverageCheck,
+    ScanResult,
+    ServerSnapshot,
+    Severity,
+)
 from mcpiranha.core.pipeline import inventories
 from mcpiranha.core.pipeline import scan as run_scan
 from mcpiranha.core.policy import POLICY_FILE, Policy, PolicyError
@@ -33,7 +42,7 @@ from mcpiranha.core.text import iter_text_fields, reveal
 from mcpiranha.flows import inventory_capabilities
 from mcpiranha.report import json_report, sarif, terminal
 from mcpiranha.rules import Rule, load_rules
-from mcpiranha.targets import TargetError, Targets, resolve
+from mcpiranha.targets import TargetError, Targets, resolve, select
 
 EXIT_OK, EXIT_FINDINGS, EXIT_ERROR = 0, 1, 2
 RUG_PULL_RULE = "MCP-RP-001"
@@ -68,6 +77,17 @@ TargetArg = Annotated[
         show_default=False,
     ),
 ]
+ServerOpt = Annotated[
+    list[str] | None,
+    typer.Option(
+        "--server",
+        help="Select an exact server name or ID (repeatable). Applied before acquisition.",
+    ),
+]
+ClientOpt = Annotated[
+    list[str] | None,
+    typer.Option("--client", help="Select an exact client identifier, e.g. cursor (repeatable)."),
+]
 FormatOpt = Annotated[OutputFormat, typer.Option("--format", "-f", help="Output format.")]
 OutputOpt = Annotated[Path | None, typer.Option("--output", "-o", help="Write the report here.")]
 PluginsOpt = Annotated[bool, typer.Option(help="Load third-party rule packs.")]
@@ -76,7 +96,7 @@ ConnectOpt = Annotated[
     typer.Option(
         "--connect",
         help="Start each server (sandboxed) or reach it, and list its tools, prompts and "
-        "resources. No tool is ever called.",
+        "resources. Tool calls require explicit --invoke names.",
     ),
 ]
 SandboxOpt = Annotated[
@@ -155,7 +175,7 @@ StrictOpt = Annotated[
 
 
 def _fail(message: str) -> NoReturn:
-    err.print(Text(f"error: {message}", style="red"))
+    err.print(Text(f"error: {reveal(message)}", style="red"))
     raise typer.Exit(EXIT_ERROR)
 
 
@@ -180,6 +200,8 @@ def _parse_headers(raw: list[str] | None) -> dict[str, str]:
 def _targets(
     target: str | None,
     *,
+    servers: list[str] | None = None,
+    clients: list[str] | None = None,
     connect: bool = False,
     sandbox: SandboxMode = SandboxMode.DOCKER,
     real_credentials: bool = False,
@@ -189,10 +211,40 @@ def _targets(
     oauth: bool = False,
     allow_network: bool = False,
     allow_install_scripts: bool = False,
+    dynamic: bool = False,
+    invoke: list[str] | None = None,
+    invoke_args: str | None = None,
+    fuzz: bool = False,
+    expected_destination: list[str] | None = None,
+    observe_seconds: float = 1.0,
 ) -> tuple[Targets, list[str]]:
     """Resolve the target and, with --connect, list every server. Returns connection warnings."""
+    if (dynamic or invoke or fuzz or invoke_args is not None) and not connect:
+        _fail("--dynamic, --invoke, --invoke-args and --fuzz require --connect")
+    if (fuzz or invoke_args is not None) and not invoke:
+        _fail("--fuzz and --invoke-args require named --invoke tools")
+    if dynamic and sandbox is not SandboxMode.DOCKER:
+        _fail("--dynamic requires --sandbox docker")
+    if expected_destination and not dynamic:
+        _fail("--expected-destination requires --dynamic")
+    from mcpiranha.dynamic.trace import destination
+
     try:
-        targets = resolve(target, Path.cwd(), connect=connect)
+        expected = tuple(destination(value) for value in expected_destination or [])
+    except ValueError as exc:
+        _fail(str(exc))
+    arguments = None
+    if invoke_args is not None:
+        try:
+            arguments = json.loads(invoke_args)
+        except ValueError:
+            _fail("--invoke-args must be a JSON object")
+        if not isinstance(arguments, dict):
+            _fail("--invoke-args must be a JSON object")
+    try:
+        targets = select(
+            resolve(target, Path.cwd(), connect=connect), servers=servers, clients=clients
+        )
     except TargetError as exc:
         _fail(str(exc))
     for warning in targets.warnings:
@@ -204,8 +256,14 @@ def _targets(
         len(targets.snapshots) == 1 and targets.snapshots[0].origin.kind == "remote"
     ):
         _fail("--header only works with a single server URL as the target")
+    if invoke and len(targets.snapshots) != 1:
+        _fail("--invoke requires a single server target to avoid calling an unrelated tool")
+    if dynamic and any(
+        s.launch is None or s.launch.transport != "stdio" for s in targets.snapshots
+    ):
+        _fail("--dynamic requires Docker-sandboxed stdio servers")
     if not connect or not targets.snapshots:
-        return targets, []
+        return targets, list(targets.warnings)
 
     if sandbox is SandboxMode.NONE:
         _warn("--sandbox none: stdio servers run directly on this machine, with your user's access")
@@ -217,6 +275,9 @@ def _targets(
         _warn("--allow-install-scripts: package install code runs during download (sandboxed)")
     options = ConnectOptions(
         sandbox=sandbox.value, real_credentials=real_credentials, timeout=timeout, jobs=jobs,
+        dynamic=dynamic, invoke=tuple(invoke or ()),
+        expected_destinations=expected, observe_seconds=observe_seconds,
+        invoke_args=cast(dict[str, Any] | None, arguments), fuzz=fuzz,
         extra_headers=headers or None, oauth_open=open_in_browser if oauth else None,
         allow_network=allow_network, allow_install_scripts=allow_install_scripts,
     )  # fmt: skip
@@ -225,7 +286,7 @@ def _targets(
     targets.snapshots, warnings = anyio.run(run)
     for warning in warnings:
         _warn(warning)
-    return targets, warnings
+    return targets, [*targets.warnings, *warnings]
 
 
 def _describe_sources(targets: Targets, *, connected: bool) -> None:
@@ -340,6 +401,8 @@ def main(
 @app.command()
 def scan(
     target: TargetArg = None,
+    server: ServerOpt = None,
+    client: ClientOpt = None,
     connect: ConnectOpt = False,
     sandbox: SandboxOpt = SandboxMode.DOCKER,
     real_credentials: RealCredentialsOpt = False,
@@ -349,6 +412,52 @@ def scan(
     oauth: OAuthOpt = False,
     allow_network: AllowNetworkOpt = False,
     allow_install_scripts: AllowScriptsOpt = False,
+    dynamic: Annotated[
+        bool,
+        typer.Option(
+            "--dynamic",
+            help="Trace sandbox syscalls, seed fake credentials and log egress. "
+            "Requires compatible Linux Docker tracing; builds a trusted helper image.",
+        ),
+    ] = False,
+    invoke: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--invoke",
+            help="Call this exact tool (repeatable, single server only). May have side effects.",
+        ),
+    ] = None,
+    invoke_args: Annotated[
+        str | None,
+        typer.Option(
+            "--invoke-args",
+            help="JSON object of tool arguments; otherwise synthesize simple inputs.",
+        ),
+    ] = None,
+    fuzz: Annotated[
+        bool,
+        typer.Option(
+            "--fuzz",
+            help="With --invoke, mutate string inputs for traversal, shell and SSRF probes.",
+        ),
+    ] = False,
+    expected_destination: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--expected-destination",
+            help="Exact host:port expected during --dynamic scans "
+            "(repeatable). Classifies activity as informational; does not permit network access.",
+        ),
+    ] = None,
+    observe_seconds: Annotated[
+        float,
+        typer.Option(
+            "--observe-seconds",
+            min=0,
+            max=30,
+            help="Seconds to observe after listing/invocation, within the server timeout.",
+        ),
+    ] = 1.0,
     offline: OfflineOpt = False,
     dependencies: Annotated[
         bool,
@@ -394,9 +503,12 @@ def scan(
 ) -> None:
     """Scan MCP servers for security issues."""
     targets, warnings = _targets(
-        target, connect=connect, sandbox=sandbox, real_credentials=real_credentials,
+        target, servers=server, clients=client, connect=connect, sandbox=sandbox,
+        real_credentials=real_credentials,
         timeout=timeout, jobs=jobs, header=header, oauth=oauth, allow_network=allow_network,
-        allow_install_scripts=allow_install_scripts,
+        allow_install_scripts=allow_install_scripts, dynamic=dynamic, invoke=invoke,
+        invoke_args=invoke_args, fuzz=fuzz, expected_destination=expected_destination,
+        observe_seconds=observe_seconds,
     )  # fmt: skip
     online = not (offline or supply.offline_by_default())
     if online:
@@ -406,6 +518,35 @@ def scan(
         for warning in lookup_warnings:
             _warn(warning)
         warnings = [*warnings, *lookup_warnings]
+    if not online:
+        targets.snapshots = [
+            record(
+                s,
+                "package",
+                CoverageCheck(
+                    status="skipped", reason="Offline mode; registry and OSV lookups disabled."
+                ),
+            )
+            if not (s.package and s.package.checked_at)
+            else s
+            for s in targets.snapshots
+        ]
+    if not online or not dependencies:
+        targets.snapshots = [
+            record(
+                s,
+                "dependencies",
+                CoverageCheck(
+                    status="skipped",
+                    reason="Offline mode; dependency lookups disabled."
+                    if not online
+                    else "Disabled by --no-deps.",
+                ),
+            )
+            if not (s.package and s.package.dependencies is not None)
+            else s
+            for s in targets.snapshots
+        ]
     # local scripts always; package archives only online
     targets.snapshots, source_warnings = anyio.run(
         functools.partial(source.collect, targets.snapshots, download=online)
@@ -441,6 +582,8 @@ def scan(
 @app.command()
 def lock(
     target: TargetArg = None,
+    server: ServerOpt = None,
+    client: ClientOpt = None,
     connect: ConnectOpt = False,
     sandbox: SandboxOpt = SandboxMode.DOCKER,
     real_credentials: RealCredentialsOpt = False,
@@ -456,7 +599,8 @@ def lock(
 ) -> None:
     """Pin the current launch configs and tool definitions to a lockfile."""
     targets, _ = _targets(
-        target, connect=connect, sandbox=sandbox, real_credentials=real_credentials,
+        target, servers=server, clients=client, connect=connect, sandbox=sandbox,
+        real_credentials=real_credentials,
         timeout=timeout, jobs=jobs, header=header, oauth=oauth, allow_network=allow_network,
         allow_install_scripts=allow_install_scripts,
     )  # fmt: skip
@@ -479,6 +623,8 @@ def lock(
 @app.command()
 def verify(
     target: TargetArg = None,
+    server: ServerOpt = None,
+    client: ClientOpt = None,
     connect: ConnectOpt = False,
     sandbox: SandboxOpt = SandboxMode.DOCKER,
     real_credentials: RealCredentialsOpt = False,
@@ -501,7 +647,8 @@ def verify(
         _fail(f"{lockfile} not found; create it with `mcpiranha lock`")
     locked = _load_lock(lockfile)
     targets, warnings = _targets(
-        target, connect=connect, sandbox=sandbox, real_credentials=real_credentials,
+        target, servers=server, clients=client, connect=connect, sandbox=sandbox,
+        real_credentials=real_credentials,
         timeout=timeout, jobs=jobs, header=header, oauth=oauth, allow_network=allow_network,
         allow_install_scripts=allow_install_scripts,
     )  # fmt: skip
@@ -515,7 +662,13 @@ def verify(
 
     current = {s.id: s.name for s in targets.snapshots}
     added = sorted(name for sid, name in current.items() if sid not in locked.servers)
-    removed = sorted(s.name for sid, s in locked.servers.items() if sid not in current)
+    removed = sorted(
+        s.name
+        for sid, s in locked.servers.items()
+        if sid not in current
+        and (not server or s.name in server or sid in server)
+        and (not client or s.client in client)
+    )
     for label, names, style in (("Added since lock", added, "bold red"),
                                 ("Removed since lock", removed, "yellow")):  # fmt: skip
         if names:
@@ -528,6 +681,8 @@ def verify(
 @app.command("inspect")
 def inspect_cmd(
     target: TargetArg = None,
+    server: ServerOpt = None,
+    client: ClientOpt = None,
     connect: ConnectOpt = False,
     sandbox: SandboxOpt = SandboxMode.DOCKER,
     real_credentials: RealCredentialsOpt = False,
@@ -540,12 +695,20 @@ def inspect_cmd(
 ) -> None:
     """Show every piece of text the model will read, with hidden characters revealed."""
     targets, _ = _targets(
-        target, connect=connect, sandbox=sandbox, real_credentials=real_credentials,
+        target, servers=server, clients=client, connect=connect, sandbox=sandbox,
+        real_credentials=real_credentials,
         timeout=timeout, jobs=jobs, header=header, oauth=oauth, allow_network=allow_network,
         allow_install_scripts=allow_install_scripts,
     )  # fmt: skip
     for snapshot in targets.snapshots:
-        out.rule(Text(reveal(f"{snapshot.name}  ({snapshot.origin.kind}: {snapshot.origin.ref})")))
+        out.rule(
+            Text(
+                reveal(
+                    f"{snapshot.name} [{snapshot.id}]  "
+                    f"({snapshot.origin.kind}: {snapshot.origin.ref})"
+                )
+            )
+        )
         if not snapshot.tools_listed:
             out.print(Text("  tools not listed (add --connect)", style="dim"))
         for tf in iter_text_fields(snapshot):
@@ -557,6 +720,8 @@ def inspect_cmd(
 @app.command("flows")
 def flows_cmd(
     target: TargetArg = None,
+    server: ServerOpt = None,
+    client: ClientOpt = None,
     connect: ConnectOpt = False,
     sandbox: SandboxOpt = SandboxMode.DOCKER,
     real_credentials: RealCredentialsOpt = False,
@@ -565,7 +730,8 @@ def flows_cmd(
 ) -> None:
     """Show each client's tool capabilities and the toxic flows between them."""
     targets, _ = _targets(
-        target, connect=connect, sandbox=sandbox, real_credentials=real_credentials,
+        target, servers=server, clients=client, connect=connect, sandbox=sandbox,
+        real_credentials=real_credentials,
         timeout=timeout, jobs=jobs,
     )  # fmt: skip
     flow_rules = [r for r in load_rules(plugins=False) if r.category is Category.TOXIC_FLOW]
@@ -577,9 +743,9 @@ def flows_cmd(
         CapabilityLabel.WRITES_FILES: "writes-files",
         CapabilityLabel.DESTRUCTIVE: "destructive",
     }
-    for client, inventory in inventories(targets.snapshots).items():
+    for client_name, inventory in inventories(targets.snapshots).items():
         caps = inventory_capabilities(inventory)
-        out.rule(Text(f"{client or 'snapshots'}: {len(inventory)} server(s)"))
+        out.rule(Text(f"{client_name or 'snapshots'}: {len(inventory)} server(s)"))
         if not caps:
             out.print(Text("  no labelled tools (add --connect to list tools)", style="dim"))
             continue

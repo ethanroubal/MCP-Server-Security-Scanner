@@ -211,7 +211,9 @@ def test_archive_bombs_stop_early(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(source, "MAX_UNPACKED", 100)
     data = _tgz({"package/a.bin": "x" * 200, "package/index.js": "const ok = 1;"})
-    assert list(archive_files(data, "pkg.tgz")) == []  # gave up before reading the rest
+    tree = analyze_files(archive_files(data, "pkg.tgz"), "pkg")
+    assert tree.files == 0  # gave up before reading the rest
+    assert "unpacked byte limit" in tree.skipped[0]
 
 
 @pytest.mark.parametrize(

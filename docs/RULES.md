@@ -96,7 +96,24 @@ contents and log notifications, which the MCP-TP rules then check like descripti
 | MCP-DY-001 | Server used the client's model (sampling) or asked for its roots, unprompted | ✅ |
 | MCP-DY-002 | Server asked the user for input (elicitation), unprompted; high when it asks for secrets | ✅ |
 
-Runtime egress, file access and tool-output checks (more MCP-DY ids) come with Phase 4.
+Runtime egress and file access checks are available with Phase 4 (below). Tool output uses
+the existing MCP-TP rules after explicit invocation.
 
 Every rule is mapped to the threats it covers, and to the tests that prove it, in
 [zoo/threats.yaml](../zoo/threats.yaml).
+
+### Dynamic behavior (opt-in)
+
+| ID | Check | Default severity |
+|---|---|---|
+| MCP-DY-003 | Successful read-capable open, positive read, or readable mapping of a synthetic credential file, including observed aliases | critical during startup/listing; high during invocation |
+| MCP-DY-004 | Network attempts from syscall traces or the logging proxy | high during startup/listing; medium during invocation; info for explicit expected destinations |
+| MCP-DY-005 | Successful execution of a shell | medium |
+| MCP-DY-006 | Fuzz-window access to a traversal, shell or network canary | medium; review intended permissions |
+| MCP-DY-007 | Attempt to signal or trace a protected collector process | high |
+
+These findings use `detector: dynamic`. Network attempts do not prove exfiltration, and a
+credential open or readable mapping does not prove its bytes were consumed. Positive reads
+record byte counts without buffer contents. Observed aliases and descriptor lifetimes are
+tracked; the strongest evidence per phase/probe is reported. Trace events include phase and raw
+syscall evidence. Saved snapshots preserve observations for offline rescans.

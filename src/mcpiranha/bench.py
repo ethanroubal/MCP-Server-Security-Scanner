@@ -12,7 +12,7 @@ are mcpiranha's own code and safe by construction, so they run on the host, like
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -47,6 +47,7 @@ class Sample:
     expect: frozenset[str]
     # rules that must NOT fire: a safe twin of a vulnerable sample guards against false positives
     forbid: frozenset[str] = frozenset()
+    invoke: tuple[str, ...] = ()  # exact tools in safe, repository-owned fixtures only
     connect: bool = True
     gap: str | None = None
     source: str | None = None
@@ -141,6 +142,7 @@ def load_sample(directory: Path, python: str) -> Sample:
         servers=cast(dict[str, dict[str, Any]], servers),
         expect=frozenset(str(r) for r in cast(list[Any], expect)),
         forbid=frozenset(str(r) for r in cast(list[Any], forbid)),
+        invoke=tuple(str(name) for name in data.get("invoke", [])),
         connect=bool(data.get("connect", True)),
         gap=str(data["gap"]).strip() if data.get("gap") else None,
         source=str(data["source"]) if data.get("source") else None,
@@ -217,7 +219,9 @@ async def run(samples: Sequence[Sample], rules: Sequence[Rule], *, timeout: floa
                         snapshots(sample, sample.before), options)  # fmt: skip
                     errors += before_errors
                     lock = build_lockfile(earlier)
-                snaps, connect_errors = await connect_all(snaps, options)
+                snaps, connect_errors = await connect_all(
+                    snaps, replace(options, invoke=sample.invoke)
+                )
             errors += connect_errors
         result = scan(snaps, list(rules), lock=lock)
         worst: dict[str, Severity] = {}

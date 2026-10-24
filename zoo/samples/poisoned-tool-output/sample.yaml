@@ -2,5 +2,5 @@ title: Injection in a tool's result rather than its description
 attack: output-poisoning
 servers:
   weather-plus: {command: "${PYTHON}", args: ["${SAMPLE}/server.py"]}
-expect: []
-gap: Needs tool calls with synthetic inputs (dynamic analysis); the scanner only lists tools.
+invoke: [get_forecast]
+expect: [MCP-TP-003, MCP-TP-004, MCP-TP-005]

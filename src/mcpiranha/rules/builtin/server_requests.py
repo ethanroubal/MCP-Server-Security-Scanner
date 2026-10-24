@@ -37,8 +37,11 @@ class UnpromptedRequests(Rule):
     )
 
     def run(self, ctx: RuleContext) -> list[Finding]:
-        seen = [o for o in ctx.snapshot.observations
-                if o.kind in ("sampling_request", "roots_request")]  # fmt: skip
+        seen = [
+            o
+            for o in ctx.snapshot.observations
+            if o.phase != "invocation" and o.kind in ("sampling_request", "roots_request")
+        ]
         if not seen:
             return []
         sampling = any(o.kind == "sampling_request" for o in seen)
@@ -66,7 +69,11 @@ class UnpromptedElicitation(Rule):
     )
 
     def run(self, ctx: RuleContext) -> list[Finding]:
-        seen = [o for o in ctx.snapshot.observations if o.kind == "elicitation_request"]
+        seen = [
+            o
+            for o in ctx.snapshot.observations
+            if o.phase != "invocation" and o.kind == "elicitation_request"
+        ]
         if not seen:
             return []
         secret = any(_SECRET_ASK.search(o.detail) for o in seen)

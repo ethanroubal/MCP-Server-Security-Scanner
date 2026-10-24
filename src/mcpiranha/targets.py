@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -26,6 +26,35 @@ class Targets:
     config_files: list[ConfigFile] = field(default_factory=list[ConfigFile])
     snapshot_file: Path | None = None
     warnings: list[str] = field(default_factory=list[str])
+
+
+def select(
+    targets: Targets, *, servers: list[str] | None = None, clients: list[str] | None = None
+) -> Targets:
+    """Exact selectors: OR within a selector, AND between client and server selectors.
+
+    Validate every selector before acquisition, so a typo never broadens a scan.
+    Names can match several clients; use a stable server ID to disambiguate.
+    """
+    snapshots = targets.snapshots
+    for client in clients or []:
+        if not any(s.origin.client == client for s in snapshots):
+            raise TargetError(f"no client matches {client!r}")
+    if clients:
+        snapshots = [s for s in snapshots if s.origin.client in clients]
+    for server in servers or []:
+        if not any(server in (s.name, s.id) for s in snapshots):
+            raise TargetError(f"no server matches {server!r} within the selected clients/target")
+    if servers:
+        snapshots = [s for s in snapshots if s.name in servers or s.id in servers]
+    # Config file counts describe discovery, not selection. Keep only relevant files and
+    # update their counts so terminal discovery output agrees with the selected scope.
+    files = [
+        replace(f, servers=sum(s.origin.config_path == str(f.path) for s in snapshots))
+        for f in targets.config_files
+        if any(s.origin.config_path == str(f.path) for s in snapshots)
+    ]
+    return Targets(snapshots, files, targets.snapshot_file, targets.warnings)
 
 
 def package_target(target: str) -> ServerSnapshot:
@@ -84,7 +113,27 @@ def resolve(target: str | None, cwd: Path, *, connect: bool = False) -> Targets:
         raise TargetError(f"{path} is not readable JSON: {exc}") from exc
     if looks_like_snapshots(data):
         try:
-            return Targets(parse_snapshots(data), snapshot_file=path)
+            snapshots = parse_snapshots(data)
+            snapshots = [
+                s.model_copy(
+                    update={
+                        "coverage": {
+                            stage: check.model_copy(
+                                update={
+                                    "reason": (
+                                        check.reason
+                                        if check.reason.startswith("Saved evidence: ")
+                                        else "Saved evidence: " + check.reason
+                                    )
+                                }
+                            )
+                            for stage, check in s.coverage.items()
+                        }
+                    }
+                )
+                for s in snapshots
+            ]
+            return Targets(snapshots, snapshot_file=path)
         except ValidationError as exc:
             raise TargetError(f"{path} is not a valid snapshot file:\n{exc}") from exc
     found = load_config(path)

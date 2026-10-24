@@ -2,7 +2,8 @@
 
 Only listing and reading requests are sent (initialize, tools/list, prompts/list, prompts/get
 for prompts without required arguments, resources/list, resources/read for static resources,
-resources/templates/list). No tool is ever called. Tools are listed twice, a moment apart, and
+resources/templates/list). Named --invoke tools are called only with explicit opt-in.
+Tools are listed twice, a moment apart, and
 `list_changed` notifications are recorded: a server whose tools change mid-session is a rug pull
 in progress (MCP-RP-002).
 
@@ -16,6 +17,7 @@ from __future__ import annotations
 import json
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any, Literal, cast
 
 import anyio
@@ -28,11 +30,14 @@ from mcpiranha.core.hashing import hash_json
 from mcpiranha.core.models import (
     DynamicObservation,
     FetchedContent,
+    ProbeRun,
     PromptDef,
     ResourceDef,
     ServerInfo,
     ToolDef,
 )
+from mcpiranha.dynamic.invoke import MAX_CALLS, cases
+from mcpiranha.dynamic.validate import baseline
 
 MAX_PAGES = 50
 
@@ -51,6 +56,7 @@ class Enumeration:
     observations: list[DynamicObservation] = field(default_factory=list[DynamicObservation])
     content: list[FetchedContent] = field(default_factory=list[FetchedContent])
     protocol_version: str = ""
+    probes: list[ProbeRun] = field(default_factory=list[ProbeRun])
 
 
 def _wire(model: Any) -> dict[str, Any]:
@@ -155,19 +161,23 @@ class _Recorder:
 
     def __init__(self, result: Enumeration) -> None:
         self.result = result
+        self.phase: Literal["startup", "listing", "invocation"] = "listing"
+        self.probe_id: str | None = None
 
     def callbacks(self) -> dict[str, Any]:
         return {"sampling_callback": self.on_sampling, "elicitation_callback": self.on_elicitation,
                 "list_roots_callback": self.on_roots, "logging_callback": self.on_log}  # fmt: skip
 
     def keep(self, kind: Any, ref: str, text: str) -> None:
-        if text.strip() and len(self.result.content) < MAX_CONTENT_ITEMS:
+        limit = MAX_CONTENT_ITEMS + MAX_CALLS if kind == "tool" else MAX_CONTENT_ITEMS
+        if text.strip() and len(self.result.content) < limit:
             self.result.content.append(FetchedContent(kind=kind, ref=ref,
-                                                      text=text[:MAX_CONTENT_CHARS]))  # fmt: skip
+                                                      text=text[:MAX_CONTENT_CHARS],
+                                                      probe_id=self.probe_id))  # fmt: skip
 
     def requested(self, kind: Any, detail: str, text: str = "") -> None:
         self.result.observations.append(
-            DynamicObservation(kind=kind, phase="listing", detail=detail)
+            DynamicObservation(kind=kind, phase=self.phase, detail=detail, probe_id=self.probe_id)
         )
         self.keep(kind.removesuffix("_request"), kind.removesuffix("_request"), text)
 
@@ -223,12 +233,18 @@ async def enumerate_server(
     timeout: float = 60.0,
     observe_seconds: float = 1.0,
     handshake: Handshake = "auto",
+    invoke: tuple[str, ...] = (),
+    invoke_args: dict[str, Any] | None = None,
+    fuzz: bool = False,
+    phase_changed: Callable[[str], None] | None = None,
+    probe_changed: Callable[[ProbeRun, bool], Awaitable[None]] | None = None,
 ) -> Enumeration:
     """`handshake`: "auto" probes the 2026 `server/discover` first and falls back by itself on
     servers that answer with an error; "legacy" sends the classic `initialize`, for older servers
     that crash on the probe instead."""
     notifications: list[str] = []
     result = Enumeration()
+    invocation_started = False
 
     async def on_message(message: Any) -> None:
         if isinstance(message, types.ToolListChangedNotification):
@@ -247,6 +263,8 @@ async def enumerate_server(
                 **recorder.callbacks(),
                 client_info=types.Implementation(name="mcpiranha", version=__version__),
             ) as client:
+                if phase_changed:
+                    phase_changed("listing")
                 info: dict[str, Any] = _wire(client.server_info) if client.server_info else {}
                 info.setdefault("name", "")
                 if client.instructions:
@@ -272,15 +290,133 @@ async def enumerate_server(
                 ]
 
                 await _fetch_content(client, result, timeout=min(timeout, CONTENT_TIMEOUT))
+                if invoke:
+                    invocation_started = True
+                    if phase_changed:
+                        phase_changed("invocation")
+                    recorder.phase = "invocation"
+                    available = {t.name: t for t in result.tools}
+                    calls = 0
+                    for name in dict.fromkeys(invoke):
+                        try:
+                            if name not in available:
+                                raise ValueError("requested tool was not listed")
+                            generated = cases(available[name], invoke_args, fuzz)
+                            await baseline(available[name].input_schema, generated[0].arguments)
+                            for case in generated:
+                                if calls >= MAX_CALLS:
+                                    raise ValueError("per-server invocation cap reached")
+                                calls += 1
+                                probe = ProbeRun(
+                                    id=f"{name}:{calls}",
+                                    tool=name,
+                                    variant=case.variant,
+                                    argument_path=case.argument_path,
+                                    started_at=datetime.now(UTC),
+                                    schema_valid=True if case.variant == "baseline" else None,
+                                )
+                                result.probes.append(probe)
+                                recorder.probe_id = probe.id
+                                window_started = False
+                                try:
+                                    if probe_changed:
+                                        await probe_changed(probe, True)
+                                    window_started = True
+                                    with anyio.fail_after(min(timeout, CONTENT_TIMEOUT)):
+                                        output = await client.call_tool(name, case.arguments)
+                                    text = _content_text(output.content)
+                                    if getattr(output, "structured_content", None):
+                                        text += "\n" + json.dumps(output.structured_content)
+                                    if len(text) > MAX_CONTENT_CHARS:
+                                        result.observations.append(
+                                            DynamicObservation(
+                                                kind="probe_error",
+                                                phase="invocation",
+                                                tool=name,
+                                                probe_id=probe.id,
+                                                detail=f"{name}: tool output truncated",
+                                            )
+                                        )
+                                    recorder.keep("tool", name, text)
+                                    probe.result_error = bool(getattr(output, "is_error", False))
+                                    probe.status = "completed"
+                                    if case.variant == "baseline" and probe.result_error:
+                                        result.observations.append(
+                                            DynamicObservation(
+                                                kind="probe_error",
+                                                phase="invocation",
+                                                tool=name,
+                                                probe_id=probe.id,
+                                                detail=f"{name}: baseline rejected; probes stopped",
+                                            )
+                                        )
+                                        break
+                                except Exception:
+                                    probe.status = "error"
+                                    raise
+                                except BaseException:
+                                    probe.status = "interrupted"
+                                    raise
+                                finally:
+                                    with anyio.CancelScope(shield=True):
+                                        probe.finished_at = (
+                                            datetime.now(UTC) if window_started else None
+                                        )
+                                        if probe_changed and window_started:
+                                            try:
+                                                await probe_changed(probe, False)
+                                            except Exception as exc:
+                                                probe.finished_at = None
+                                                result.observations.append(
+                                                    DynamicObservation(
+                                                        kind="probe_error",
+                                                        phase="invocation",
+                                                        tool=name,
+                                                        probe_id=probe.id,
+                                                        detail=f"clock failed: {_short(str(exc))}",
+                                                    )
+                                                )
+                                        recorder.probe_id = None
+
+                        except Exception as exc:
+                            result.observations.append(
+                                DynamicObservation(
+                                    kind="probe_error",
+                                    phase="invocation",
+                                    detail=f"{name}: {type(exc).__name__}: {_short(str(exc))}",
+                                )
+                            )
+                    recorder.phase = "listing"
+                    if phase_changed:
+                        phase_changed("listing")
                 await anyio.sleep(observe_seconds)
                 first, result.tools = result.tools, await tools()
                 changes = _tool_changes(first, result.tools)
                 latest = {t.name: t for t in result.tools}
                 result.earlier_tools = [t for t in first if latest.get(t.name) != t]
     except TimeoutError as exc:
+        if invocation_started:
+            result.observations.append(
+                DynamicObservation(
+                    kind="probe_error",
+                    phase="invocation",
+                    detail="behavioral scan deadline exceeded",
+                )
+            )
+            return result
         raise EnumerationError(f"no complete answer within {timeout:.0f}s") from exc
     except Exception as exc:
         cause = _root_cause(exc)
+        if invocation_started:
+            result.observations.append(
+                DynamicObservation(
+                    kind="probe_error",
+                    phase="invocation",
+                    detail=f"behavioral scan interrupted: {type(cause).__name__}: "
+                    f"{_short(str(cause))}",
+                )
+            )
+            return result
         raise EnumerationError(f"{type(cause).__name__}: {cause}") from exc
 
     if changes or notifications:

@@ -19,14 +19,14 @@ FieldKind = Literal[
     "const", "example",
     # fetched while listing (ServerSnapshot.content): prompt bodies, resource contents, logs,
     # and the text of sampling / elicitation requests
-    "prompt-body", "resource-content", "log", "sampling", "elicitation",
+    "prompt-body", "resource-content", "log", "sampling", "elicitation", "tool-output",
 ]  # fmt: skip
 CONTENT_KINDS: frozenset[str] = frozenset(
-    {"prompt-body", "resource-content", "log", "sampling", "elicitation"}
+    {"prompt-body", "resource-content", "log", "sampling", "elicitation", "tool-output"}
 )
 _CONTENT_FIELD: dict[str, FieldKind] = {
     "prompt": "prompt-body", "resource": "resource-content", "log": "log",
-    "sampling": "sampling", "elicitation": "elicitation",
+    "sampling": "sampling", "elicitation": "elicitation", "tool": "tool-output",
 }  # fmt: skip
 
 # Schema keys whose string values are shown to the model.
@@ -102,6 +102,7 @@ def iter_text_fields(snapshot: ServerSnapshot) -> Iterator[TextField]:
 
     for i, item in enumerate(snapshot.content):
         loc = Location(server_id=snapshot.id, json_pointer=f"/content/{i}/text",
+                       tool=item.ref if item.kind == "tool" else None,
                        prompt=item.ref if item.kind == "prompt" else None,
                        resource=item.ref if item.kind == "resource" else None)  # fmt: skip
         yield TextField(loc, _CONTENT_FIELD[item.kind], item.text)

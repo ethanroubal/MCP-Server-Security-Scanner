@@ -249,3 +249,35 @@ def test_deprecated_and_removed() -> None:
     assert _found(deprecated="use pkg2") == {"MCP-SC-006": Severity.LOW}
     assert _found(removed=True) == {"MCP-SC-006": Severity.HIGH}
     assert _found(yanked="broken") == {"MCP-SC-006": Severity.MEDIUM}
+
+
+def test_coverage_records_registry_and_osv_failures() -> None:
+    from mcpiranha.core.coverage import summarize
+    from mcpiranha.supply.registry import RegistryError
+
+    class BrokenOSV(FakeRegistry):
+        async def post(self, url: str, body: Any) -> Any:
+            raise RegistryError("OSV unavailable")
+
+    enriched, warnings = anyio.run(
+        lambda: enrich(
+            [_snapshot("pkg@1.0.0")],
+            http=BrokenOSV({"https://registry.npmjs.org/pkg": PACKUMENT}),
+        )
+    )
+    assert warnings and "OSV" in warnings[0]
+    assert summarize(enriched[0])["package"].status == "partial"
+
+    class BrokenRegistry(FakeRegistry):
+        async def get(self, url: str, headers: dict[str, str]) -> Any:
+            raise RegistryError("registry unavailable")
+
+    enriched, warnings = anyio.run(
+        lambda: enrich(
+            [_snapshot("pkg@1.0.0")],
+            http=BrokenRegistry({}),
+        )
+    )
+    assert warnings
+    assert summarize(enriched[0])["package"].status == "failed"
+    assert summarize(enriched[0])["dependencies"].status == "failed"

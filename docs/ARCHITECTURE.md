@@ -1,7 +1,8 @@
 # MCP Server Security Scanner — Architecture
 
-Status: v0.4 (2026-10-23) — implementation language: Python. Phase 1 implemented; Phase 2 partly
-(toxic flows, experimental classifier). Where this plan and the code differ, the code and
+Status: v0.5 (2026-10-24) — implementation language: Python. Phase 1 implemented; Phase 2 partly
+(toxic flows, experimental classifier); Phase 4 has a bounded implementation (§5.8).
+Where this plan and the code differ, the code and
 calibration/README.md are current; sections below are marked where they changed.
 
 ## 1. Goal
@@ -74,7 +75,9 @@ Enumerating a stdio MCP server means **running it**. So:
   `mcpiranha/acquire/sandbox.py`): the package is **downloaded** in a container with network access but without
   running its code (`npm --ignore-scripts`, PyPI wheels only), then the server **runs** from that read-only
   volume with no network, no capabilities, no privilege escalation, a non-root user and resource limits.
-  `--allow-network` and `--allow-install-scripts` relax this per run. A logging egress proxy is still Phase 4.
+  `--allow-network` and `--allow-install-scripts` relax this per run. With `--dynamic`, a logging
+  HTTP/HTTPS proxy replaces unrestricted egress; it denies by default and forwards only with
+  `--allow-network`. The server stays on an internal Docker network.
 - Real env vars (API keys) from the user's config are **not** passed by default; dummy values are substituted.
   `tools/list` almost always works without valid credentials.
 - Invoking tools (`--invoke`) is a separate, explicit opt-in because tool calls can have side effects.
@@ -308,17 +311,36 @@ Single-server chains are reported at lower severity than cross-server ones; auto
 `mcpiranha flows` prints each client's capabilities and chains; an HTML graph is not built yet.
 
 ### 5.8 Dynamic behavior (`MCP-DY`, opt-in)
-- **Honeytokens:** sandbox `$HOME` is seeded with fake `~/.ssh/id_rsa`, `~/.aws/credentials`, `.env`, browser
-  cookie DB. Any read during startup/listing (before any tool is called) is critical.
-- **Egress monitoring:** all network goes through a logging proxy; default-deny. Unexpected DNS/HTTP during startup
-  or listing is flagged.
-- **Syscall/file tracing:** strace/eBPF (Linux) inside the container for file opens and process spawns.
-- **Tool-output injection:** with `--invoke`, call tools that look read-only with benign inputs and run the §5.1
-  detectors on the *results* (resources and tool outputs are an injection channel too).
-- **Fuzzing** (with `--invoke --fuzz`): traversal (`../../etc/passwd`), command injection (`;id`), SSRF canary URLs.
-  LLM can generate schema-aware payloads.
-- **Elicitation / sampling abuse:** record whether the server sends `elicitation/create` asking for credentials, or
-  `sampling/createMessage` with injected prompts.
+
+Built: `scan --connect --dynamic` seeds a synthetic HOME with fake SSH, AWS, dotenv and
+browser-cookie files, traces file opens/network attempts/process execution with strace,
+and places the server on an internal Docker network behind a logging default-deny
+HTTP/HTTPS proxy. A static trusted launcher waits for an external collector before starting
+the server. The collector alone receives SYS_PTRACE and owns an isolated trace volume;
+untrusted images are never build bases. Successful honeytoken opens during startup/listing
+are critical; during invocation they are high. Network findings describe attempts, not proven
+exfiltration. Relative paths, directory FDs and split syscall records are resolved. Observed file aliases,
+duplicated/inherited descriptors, positive reads and readable mappings are tracked without
+decoding read buffers. Credential findings prefer the strongest evidence per probe/phase. Traces
+remain bounded; unobserved syscalls, kernel-level evasion and conditional triggers remain gaps. See README for supported runtimes and limits.
+
+`--invoke NAME` explicitly selects tools on a single server; annotations do not authorize
+calls. Inputs are supplied as a JSON object or generated from bounded required schemas.
+Baseline inputs are validated offline against JSON Schema Draft 7, 2019-09 or 2020-12 in a resource-bounded
+worker before invocation; remote references are never fetched. Rejected baselines stop
+further probing of that tool and produce a partial-scan warning.
+`--fuzz` adds traversal, shell-marker and reserved-address SSRF inputs to nested strings,
+with a 24-call cap. Tool text and structured output join the existing poisoning detectors.
+Probe records link call outputs and observed canaries by time window; this is temporal
+association, not proof of causality or exploitability. Explicit expected host:port entries
+classify known network activity as informational without permitting egress or hiding unknown
+endpoints. Failures/truncation generate partial-scan warnings, evidence survives initialization
+crashes, and invocation is never replayed by a
+handshake fallback. Fuzz errors alone do not establish exploitability. LLM-generated fuzz
+inputs and comprehensive taint-to-runtime correlation are future work.
+
+Sampling, roots and elicitation requests are recorded and declined; requests during
+invocation are distinguished from unprompted requests during listing.
 
 ---
 
@@ -503,7 +525,7 @@ class Rule(ABC):
 | 1 ✅ | Discovery (16 clients), config rules, sandboxed `--connect`, metadata rules, lockfile, policy, TTY/JSON/SARIF, calibration against the registry's top 100 | Useful offline scanner |
 | 2 (in progress) | **Toxic flows** ✅, local classifier (experimental ✅; MCP-tuned model next), adversarial corpus + `bench` ✅, BYO-LLM layer | The differentiating features |
 | 3 (in progress) | Supply-chain analyzer ✅ (npm/PyPI + OSV; zoo samples on local registries), source analysis (hidden behavior ✅; taint next) + LLM triage, npm/PyPI/git targets | Pre-install vetting |
-| 4 | Dynamic sandbox: honeytokens, egress, tracing, `--invoke`, fuzzing | Behavioral evidence |
+| 4 (implemented, bounded) | Opt-in Docker honeytokens, logging egress proxy, syscall tracing, named `--invoke`, deterministic fuzzing | Behavioral evidence; limits in README |
 | 5 | `mcpiranha serve`, `mcpiranha proxy` runtime guard, registry-wide batch scanning | Continuous protection |
 
 ---

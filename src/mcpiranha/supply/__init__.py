@@ -25,8 +25,9 @@ import anyio
 import httpx2
 
 from mcpiranha import __version__
+from mcpiranha.core.coverage import record, summarize
 from mcpiranha.core.launch import package_ref
-from mcpiranha.core.models import PackageMeta, ServerSnapshot, Vulnerability
+from mcpiranha.core.models import CoverageCheck, PackageMeta, ServerSnapshot, Vulnerability
 from mcpiranha.supply import deps, osv
 from mcpiranha.supply.registry import NotFound, RegistryError, npm_meta, pypi_meta
 
@@ -168,6 +169,12 @@ async def enrich(
                                               npm=registries.npm, pypi=registries.pypi)  # fmt: skip
             except (RegistryError, httpx2.HTTPError, OSError) as exc:
                 warnings[i] = f"{snapshot.name}: registry lookup failed: {exc}"
+                for stage in ("package", "dependencies"):
+                    out[i] = record(
+                        out[i],
+                        stage,
+                        CoverageCheck(status="failed", reason=f"Registry lookup failed: {exc}"),
+                    )
                 return
         if meta is not None:
             found[i] = meta
@@ -192,5 +199,9 @@ async def enrich(
     packages = deps.assign(packages, advisories, "vulnerabilities")
     packages = deps.assign(packages, [now] * len(flat), "checked_at")
     for i, meta in zip(order, packages, strict=True):
-        out[i] = out[i].model_copy(update={"package": meta})
+        collected = out[i].model_copy(update={"package": meta})
+        checks = summarize(collected.model_copy(update={"coverage": {}}))
+        for stage in ("package", "dependencies"):
+            collected = record(collected, stage, checks[stage])
+        out[i] = collected
     return out, [warnings[k] for k in sorted(warnings)]

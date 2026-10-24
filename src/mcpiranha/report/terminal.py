@@ -83,6 +83,18 @@ def render(result: ScanResult, console: Console) -> None:
         summary.append(f" ({len(result.suppressed)} suppressed by policy)", style="dim")
     console.print(summary)
 
+    console.print(Text("Coverage (collected evidence; does not establish safety):", style="dim"))
+    for server in result.servers:
+        console.print(Text(f"  {reveal(server.name)} [{reveal(server.id)}]", style="bold"))
+        for stage, check in server.coverage.items():
+            count = f" ({check.count})" if check.count is not None else ""
+            console.print(
+                Text(
+                    f"    {stage}: {check.status}{count} — {reveal(check.reason)}",
+                    style="yellow" if check.status in ("partial", "failed", "unknown") else "dim",
+                )
+            )
+
     for warning in result.warnings:
         console.print(Text(f"warning: {reveal(warning)}", style="yellow"))
     for error in result.errors:
